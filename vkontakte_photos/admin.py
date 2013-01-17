@@ -3,8 +3,18 @@ from django.contrib import admin
 from vkontakte_api.admin import VkontakteModelAdmin
 from models import Album, Photo
 
-class PhotoInline(admin.StackedInline):
+class PhotoInline(admin.TabularInline):
+
+    def image(self, instance):
+        return '<img src="%s" />' % (instance.src_small,)
+    image.short_description = 'photo'
+    image.allow_tags = True
+
     model = Photo
+    fields = ('created','image','text','owner','group','user','likes','comments','tags')
+    readonly_fields = fields
+    extra = False
+    can_delete = False
 
 class AlbumAdmin(VkontakteModelAdmin):
 
@@ -16,7 +26,7 @@ class AlbumAdmin(VkontakteModelAdmin):
     list_display = ('image_preview','title','size','vk_link','created','updated')
     list_display_links = ('title',)
     search_fields = ('title','description')
-#    inlines = [PhotoInline]
+    inlines = [PhotoInline]
 
 class PhotoAdmin(VkontakteModelAdmin):
 
