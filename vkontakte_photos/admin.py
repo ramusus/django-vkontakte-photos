@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
+from django.core.urlresolvers import reverse
 from vkontakte_api.admin import VkontakteModelAdmin
 from models import Album, Photo
 
@@ -35,8 +36,12 @@ class PhotoAdmin(VkontakteModelAdmin):
     image_preview.short_description = u'Картинка'
     image_preview.allow_tags = True
 
-    list_display = ('image_preview','text','vk_link','likes','created')
-    list_display_links = ('text',)
+    def text_with_link(self, obj):
+        return u'%s <a href="%s"><strong>ссылка</strong></a>' % (obj.text, (reverse('admin:vkontakte_photos_photo_change', args=(obj.id,))))
+    text_with_link.short_description = u'Текст'
+    text_with_link.allow_tags = True
+
+    list_display = ('image_preview','text_with_link','vk_link','likes','comments','tags','created')
     list_filter = ('album',)
 
 admin.site.register(Album, AlbumAdmin)

@@ -155,9 +155,9 @@ class Photo(VkontaktePhotosIDModel):
     width = models.PositiveIntegerField(null=True)
     height = models.PositiveIntegerField(null=True)
 
-    likes = models.PositiveIntegerField(u'Кол-во лайков', default=0)
-    comments = models.PositiveIntegerField(u'Кол-во лайков', default=0)
-    tags = models.PositiveIntegerField(u'Кол-во тегов', default=0)
+    likes = models.PositiveIntegerField(u'Лайков', default=0)
+    comments = models.PositiveIntegerField(u'Комментариев', default=0)
+    tags = models.PositiveIntegerField(u'Тегов', default=0)
 
     text = models.TextField()
 
