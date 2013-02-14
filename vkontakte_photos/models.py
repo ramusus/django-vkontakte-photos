@@ -20,43 +20,61 @@ ALBUM_PRIVACY_CHOCIES = (
 
 class VkontakteAlbumsRemoteManager(VkontakteManager):
 
-    def fetch(self, user=None, group=None, ids=None):
-        if not user and not group:
-            raise ValueError("You must specify user of group, which albums you want to fetch")
-        if ids and not isinstance(ids, (tuple, list)):
-            raise ValueError("Attribute 'ids' should be tuple or list")
-
-        kwargs = {'need_covers': 1}
-        if user:
-            kwargs.update({'uid': user.remote_id})
-        if group:
-            kwargs.update({'gid': group.remote_id})
-        if ids:
-            kwargs.update({'aids': ','.join(ids)})
-        return super(VkontakteAlbumsRemoteManager, self).fetch(**kwargs)
-
-class VkontaktePhotosRemoteManager(VkontakteManager):
-
-    def fetch(self, album, user=None, group=None, ids=None, limit=None, offset=None):
+    def fetch(self, user=None, group=None, ids=None, need_covers=False):
         if not user and not group:
             raise ValueError("You must specify user of group, which albums you want to fetch")
         if ids and not isinstance(ids, (tuple, list)):
             raise ValueError("Attribute 'ids' should be tuple or list")
 
         kwargs = {
-            'aid': album.remote_id.split('_')[1],
-            'extended': 1
+            #need_covers
+            #1 - будет возвращено дополнительное поле thumb_src. По умолчанию поле thumb_src не возвращается.
+            'need_covers': int(need_covers)
         }
+        #uid
+        #ID пользователя, которому принадлежат альбомы. По умолчанию – ID текущего пользователя.
         if user:
             kwargs.update({'uid': user.remote_id})
+        #gid
+        #ID группы, которой принадлежат альбомы.
         if group:
             kwargs.update({'gid': group.remote_id})
+        #aids
+        #перечисленные через запятую ID альбомов.
         if ids:
-            kwargs.update({'pids': ','.join(ids)})
+            kwargs.update({'aids': ','.join(map(str, ids))})
+
+        return super(VkontakteAlbumsRemoteManager, self).fetch(**kwargs)
+
+class VkontaktePhotosRemoteManager(VkontakteManager):
+
+    def fetch(self, album, ids=None, limit=None, extended=False, offset=0, photo_sizes=False):
+        if ids and not isinstance(ids, (tuple, list)):
+            raise ValueError("Attribute 'ids' should be tuple or list")
+
+        kwargs = {
+            'aid': album.remote_id.split('_')[1],
+            'extended': int(extended),
+            'offset': int(offset),
+            #photo_sizes
+            #1 - позволяет получать все размеры фотографий.
+            'photo_sizes': int(photo_sizes),
+        }
+        if album.owner:
+            kwargs.update({'uid': album.owner.remote_id})
+        elif album.group:
+            kwargs.update({'gid': album.group.remote_id})
+        if ids:
+            kwargs.update({'pids': ','.join(map(str, ids))})
         if limit:
             kwargs.update({'limit': limit})
-        if offset:
-            kwargs.update({'offset': offset})
+
+        # TODO: добавить поля
+        #feed
+        #Unixtime, который может быть получен методом newsfeed.get в поле date, для получения всех фотографий загруженных пользователем в определённый день либо на которых пользователь был отмечен. Также нужно указать параметр uid пользователя, с которым произошло событие.
+        #feed_type
+        #Тип новости получаемый в поле type метода newsfeed.get, для получения только загруженных пользователем фотографий, либо только фотографий, на которых он был отмечен. Может принимать значения photo, photo_tag.
+
         return super(VkontaktePhotosRemoteManager, self).fetch(**kwargs)
 
 class VkontaktePhotosIDModel(VkontakteModel):
@@ -144,7 +162,7 @@ class Photo(VkontaktePhotosIDModel):
     owner = models.ForeignKey(User, verbose_name=u'Владелец фотографии', null=True, related_name='photos')
     group = models.ForeignKey(Group, verbose_name=u'Группа фотографии', null=True, related_name='photos')
 
-    user = models.ForeignKey(User, verbose_name=u'Автор фотографии', related_name='photos_author')
+    user = models.ForeignKey(User, verbose_name=u'Автор фотографии', null=True, related_name='photos_author')
 
     src = models.CharField(u'Иконка', max_length='200')
     src_big = models.CharField(u'Большая', max_length='200')
@@ -179,7 +197,9 @@ class Photo(VkontaktePhotosIDModel):
             if field_name in response and 'count' in response[field_name]:
                 setattr(self, field_name, response[field_name]['count'])
 
-        self.user = User.objects.get_or_create(remote_id=response['user_id'])[0]
+        if 'user_id' in response:
+            self.user = User.objects.get_or_create(remote_id=response['user_id'])[0]
+
         try:
             self.album = Album.objects.get(remote_id=self.get_remote_id(response['aid']))
         except Album.DoesNotExist:
