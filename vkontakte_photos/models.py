@@ -117,6 +117,7 @@ class Album(VkontaktePhotosIDModel):
 
     remote_pk_field = 'aid'
 
+    # TODO: migrate to ContentType framework, remove vkontakte_users and vkontakte_groups dependencies
     owner = models.ForeignKey(User, verbose_name=u'Владелец альбома', null=True, related_name='photo_albums')
     group = models.ForeignKey(Group, verbose_name=u'Группа альбома', null=True, related_name='photo_albums')
 

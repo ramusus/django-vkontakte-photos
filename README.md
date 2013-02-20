@@ -1,5 +1,7 @@
 # Django Vkontakte Photos
 
+<a href="https://travis-ci.org/ramusus/django-vkontakte-photos" title="Django Vkontakte Photos Travis Status"><img src="https://secure.travis-ci.org/ramusus/django-vkontakte-photos.png"></a>
+
 Приложение позволяет взаимодействовать с фотоальбомами и фотографиями Вконтакте используя стандартные модели Django через Вконтакте API
 
 ## Установка
