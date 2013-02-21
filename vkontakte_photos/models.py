@@ -18,7 +18,7 @@ ALBUM_PRIVACY_CHOCIES = (
     (3, u'Только я')
 )
 
-class VkontakteAlbumsRemoteManager(VkontakteManager):
+class AlbumRemoteManager(VkontakteManager):
 
     def fetch(self, user=None, group=None, ids=None, need_covers=False):
         if not user and not group:
@@ -44,9 +44,9 @@ class VkontakteAlbumsRemoteManager(VkontakteManager):
         if ids:
             kwargs.update({'aids': ','.join(map(str, ids))})
 
-        return super(VkontakteAlbumsRemoteManager, self).fetch(**kwargs)
+        return super(AlbumRemoteManager, self).fetch(**kwargs)
 
-class VkontaktePhotosRemoteManager(VkontakteManager):
+class PhotoRemoteManager(VkontakteManager):
 
     def fetch(self, album, ids=None, limit=None, extended=False, offset=0, photo_sizes=False):
         if ids and not isinstance(ids, (tuple, list)):
@@ -75,15 +75,19 @@ class VkontaktePhotosRemoteManager(VkontakteManager):
         #feed_type
         #Тип новости получаемый в поле type метода newsfeed.get, для получения только загруженных пользователем фотографий, либо только фотографий, на которых он был отмечен. Может принимать значения photo, photo_tag.
 
-        return super(VkontaktePhotosRemoteManager, self).fetch(**kwargs)
+        return super(PhotoRemoteManager, self).fetch(**kwargs)
 
-class VkontaktePhotosIDModel(VkontakteModel):
+class PhotosIDModel(VkontakteModel):
     class Meta:
         abstract = True
 
     methods_namespace = 'photos'
 
     remote_id = models.CharField(u'ID', max_length='20', help_text=u'Уникальный идентификатор', unique=True)
+
+    @property
+    def slug(self):
+        return self.slug_prefix + str(self.remote_id)
 
     def get_remote_id(self, id):
         '''
@@ -104,11 +108,11 @@ class VkontaktePhotosIDModel(VkontakteModel):
         else:
             self.group = Group.objects.get_or_create(remote_id=abs(owner_id))[0]
 
-        super(VkontaktePhotosIDModel, self).parse(response)
+        super(PhotosIDModel, self).parse(response)
 
         self.remote_id = self.get_remote_id(self.remote_id)
 
-class Album(VkontaktePhotosIDModel):
+class Album(PhotosIDModel):
     class Meta:
         db_table = 'vkontakte_photos_album'
         verbose_name = u'Альбом фотографий Вконтакте'
@@ -116,6 +120,7 @@ class Album(VkontaktePhotosIDModel):
         ordering = ['remote_id']
 
     remote_pk_field = 'aid'
+    slug_prefix = 'album'
 
     # TODO: migrate to ContentType framework, remove vkontakte_users and vkontakte_groups dependencies
     owner = models.ForeignKey(User, verbose_name=u'Владелец альбома', null=True, related_name='photo_albums')
@@ -134,22 +139,18 @@ class Album(VkontaktePhotosIDModel):
     privacy = models.PositiveIntegerField(u'Уровень доступа к альбому', null=True, choices=ALBUM_PRIVACY_CHOCIES)
 
     objects = models.Manager()
-    remote = VkontakteAlbumsRemoteManager(remote_pk=('remote_id',), methods={
+    remote = AlbumRemoteManager(remote_pk=('remote_id',), methods={
         'get': 'getAlbums',
 #        'edit': 'editAlbum',
     })
-
-    @property
-    def slug(self):
-        return 'album%s' % self.remote_id
 
     def __unicode__(self):
         return self.title
 
     def fetch_photos(self):
-        return Photo.remote.fetch(album=self, group=self.group, user=self.owner)
+        return Photo.remote.fetch(album=self)
 
-class Photo(VkontaktePhotosIDModel):
+class Photo(PhotosIDModel):
     class Meta:
         db_table = 'vkontakte_photos_photo'
         verbose_name = u'Фотография Вконтакте'
@@ -157,6 +158,7 @@ class Photo(VkontaktePhotosIDModel):
         ordering = ['remote_id']
 
     remote_pk_field = 'pid'
+    slug_prefix = 'photo'
 
     album = models.ForeignKey(Album, verbose_name=u'Альбом', related_name='photos')
 
@@ -183,13 +185,9 @@ class Photo(VkontaktePhotosIDModel):
     created = models.DateTimeField()
 
     objects = models.Manager()
-    remote = VkontaktePhotosRemoteManager(remote_pk=('remote_id',), methods={
+    remote = PhotoRemoteManager(remote_pk=('remote_id',), methods={
         'get': 'get',
     })
-
-    @property
-    def slug(self):
-        return 'photo%s' % self.remote_id
 
     def parse(self, response):
         super(Photo, self).parse(response)
