@@ -1,4 +1,5 @@
 INSTALLED_APPS = (
+    'vkontakte_places',
     'vkontakte_users',
     'vkontakte_groups',
     'oauth_tokens',
