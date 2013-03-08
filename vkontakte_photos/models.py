@@ -147,8 +147,8 @@ class Album(PhotosIDModel):
     def __unicode__(self):
         return self.title
 
-    def fetch_photos(self):
-        return Photo.remote.fetch(album=self)
+    def fetch_photos(self, *args, **kwargs):
+        return Photo.remote.fetch(album=self, *args, **kwargs)
 
 class Photo(PhotosIDModel):
     class Meta:
@@ -205,6 +205,10 @@ class Photo(PhotosIDModel):
             raise Exception('Impossible to save photo for unexisted album %s' % (self.get_remote_id(response['aid']),))
 
     def fetch_comments(self):
+        '''
+        Fetch total ammount of comments
+        TODO: implement fetching comments
+        '''
         post_data = {
             'act':'photo_comments',
             'al': 1,
