@@ -114,7 +114,6 @@ class PhotosIDModel(VkontakteModel):
 
 class Album(PhotosIDModel):
     class Meta:
-        db_table = 'vkontakte_photos_album'
         verbose_name = u'Альбом фотографий Вконтакте'
         verbose_name_plural = u'Альбомы фотографий Вконтакте'
         ordering = ['remote_id']
@@ -152,7 +151,6 @@ class Album(PhotosIDModel):
 
 class Photo(PhotosIDModel):
     class Meta:
-        db_table = 'vkontakte_photos_photo'
         verbose_name = u'Фотография Вконтакте'
         verbose_name_plural = u'Фотографии Вконтакте'
         ordering = ['remote_id']
@@ -221,6 +219,10 @@ class Photo(PhotosIDModel):
         self.save()
 
     def update_likes(self):
+        '''
+        Fetch total ammount of likes
+        TODO: implement fetching users who likes
+        '''
         post_data = {
             'act':'a_get_stats',
             'al': 1,

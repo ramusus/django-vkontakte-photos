@@ -28,6 +28,25 @@
     OAUTH_TOKENS_VKONTAKTE_PASSWORD = ''                                # user password
     OAUTH_TOKENS_VKONTAKTE_PHONE_END = ''                               # last 4 digits of user mobile phone
 
+## Покрытие методов API
+
+* [photos.getAlbums](http://vk.com/developers.php?oid=-1&p=photos.getAlbums) – возвращает список альбомов пользователя;
+* [photos.get](http://vk.com/developers.php?oid=-1&p=photos.get) – возвращает список фотографий в альбоме;
+
+В планах:
+
+* [photos.getById](http://vk.com/developers.php?oid=-1&p=photos.getById) – возвращает информацию о фотографиях;
+
+## Использование парсера
+
+* Получение количества комментариев к фотографии;
+* Получение количества лайков фотографии;
+
+В планах:
+
+* Получение комментариев к фотографии;
+* Получение лайков фотографии;
+
 ## Примеры использования
 
 ### Получение фотоальбомов группы через метод группы
