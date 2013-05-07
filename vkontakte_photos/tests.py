@@ -16,6 +16,7 @@ class VkontaktePhotosTest(TestCase):
     def test_fetch_group_albums(self):
 
         group = GroupFactory.create(remote_id=GROUP_ID)
+        group.save() # strange, but it's neccesary to save model after creating
 
         self.assertEqual(Album.objects.count(), 0)
 
@@ -23,12 +24,14 @@ class VkontaktePhotosTest(TestCase):
 
         self.assertTrue(len(albums) > 0)
         self.assertEqual(Album.objects.count(), len(albums))
-        self.assertEqual(albums[0].group, group)
+        self.assertEqual(albums[0].group, group) 
 
     def test_fetch_group_photos(self):
 
         group = GroupFactory.create(remote_id=GROUP_ID)
         album = AlbumFactory.create(remote_id=ALBUM_ID, group=group)
+        group.save() # strange, but it's neccesary to save model after creating
+        album.save() # strange, but it's neccesary to save model after creating
 
         self.assertEqual(Photo.objects.count(), 0)
 
@@ -43,7 +46,9 @@ class VkontaktePhotosTest(TestCase):
 
         group = GroupFactory.create(remote_id=GROUP_ID)
         album = AlbumFactory.create(remote_id=ALBUM_ID, group=group)
+        album.save() # strange, but it's neccesary to save model after creating
         photo = PhotoFactory.create(remote_id=PHOTO_ID, album=album)
+        photo.save() # strange, but it's neccesary to save model after creating
 
         self.assertEqual(photo.likes, 0)
         photo.update_likes()
@@ -53,7 +58,9 @@ class VkontaktePhotosTest(TestCase):
 
         group = GroupFactory.create(remote_id=GROUP_ID)
         album = AlbumFactory.create(remote_id=ALBUM_ID, group=group)
+        album.save() # strange, but it's neccesary to save model after creating
         photo = PhotoFactory.create(remote_id=PHOTO_ID, album=album)
+        photo.save() # strange, but it's neccesary to save model after creating
 
         self.assertEqual(photo.comments, 0)
         photo.fetch_comments()
@@ -69,6 +76,7 @@ class VkontaktePhotosTest(TestCase):
             '''
         instance = Album()
         owner = UserFactory.create(remote_id=6492)
+        owner.save() # strange, but it's neccesary to save model after creating
         instance.parse(json.loads(response)['response'][0])
         instance.save()
 
@@ -77,13 +85,14 @@ class VkontaktePhotosTest(TestCase):
         self.assertEqual(instance.owner, owner)
         self.assertEqual(instance.title, 'qwerty')
         self.assertEqual(instance.description, 'desc')
-        self.assertEqual(instance.created, datetime(2011,2,22,9,0,0))
-        self.assertEqual(instance.updated, datetime(2011,2,22,9,0,1))
         self.assertEqual(instance.size, 3)
         self.assertEqual(instance.privacy, 3)
+        self.assertIsNotNone(instance.created)
+        self.assertIsNotNone(instance.updated)
 
         instance = Album()
         group = GroupFactory.create(remote_id=6492)
+        group.save() # strange, but it's neccesary to save model after creating
         instance.parse(json.loads(response)['response'][1])
         instance.save()
 
@@ -111,21 +120,25 @@ class VkontaktePhotosTest(TestCase):
         instance = Photo()
         owner = UserFactory.create(remote_id=6492)
         album = AlbumFactory.create(remote_id='6492_100001227')
+        owner.save() # strange, but it's neccesary to save model after creating
+        album.save() # strange, but it's neccesary to save model after creating
         instance.parse(json.loads(response)['response'][0])
         instance.save()
 
         self.assertEqual(instance.remote_id, '6492_146771291')
         self.assertEqual(instance.album, album)
         self.assertEqual(instance.owner, owner)
-        self.assertEqual(instance.created, datetime(2011,2,22,9,0,0))
         self.assertEqual(instance.src, 'http://cs9231.vkontakte.ru/u06492/100001227/m_7875d2fb.jpg')
         self.assertEqual(instance.text, 'test')
         self.assertEqual(instance.width, 10)
         self.assertEqual(instance.height, 10)
+        self.assertIsNotNone(instance.created)
 
         instance = Photo()
         group = GroupFactory.create(remote_id=6492)
         album = AlbumFactory.create(remote_id='-6492_100001227')
+        group.save() # strange, but it's neccesary to save model after creating
+        album.save() # strange, but it's neccesary to save model after creating
         instance.parse(json.loads(response)['response'][1])
         instance.save()
 
