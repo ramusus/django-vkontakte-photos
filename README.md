@@ -1,10 +1,10 @@
-# Django Vkontakte Photos
-
-[![Build Status](https://travis-ci.org/ramusus/django-vkontakte-photos.png?branch=master)](https://travis-ci.org/ramusus/django-vkontakte-photos) [![Coverage Status](https://coveralls.io/repos/ramusus/django-vkontakte-photos/badge.png?branch=master)](https://coveralls.io/r/ramusus/django-vkontakte-photos)
+Django Vkontakte Photos [![Build Status](https://travis-ci.org/ramusus/django-vkontakte-photos.png?branch=master)](https://travis-ci.org/ramusus/django-vkontakte-photos) [![Coverage Status](https://coveralls.io/repos/ramusus/django-vkontakte-photos/badge.png?branch=master)](https://coveralls.io/r/ramusus/django-vkontakte-photos)
+=======================
 
 Приложение позволяет взаимодействовать с фотоальбомами и фотографиями Вконтакте используя стандартные модели Django через Вконтакте API
 
-## Установка
+Установка
+---------
 
     pip install django-vkontakte-photos
 
@@ -28,7 +28,8 @@
     OAUTH_TOKENS_VKONTAKTE_PASSWORD = ''                                # user password
     OAUTH_TOKENS_VKONTAKTE_PHONE_END = ''                               # last 4 digits of user mobile phone
 
-## Покрытие методов API
+Покрытие методов API
+--------------------
 
 * [photos.getAlbums](http://vk.com/developers.php?oid=-1&p=photos.getAlbums) – возвращает список альбомов пользователя;
 * [photos.get](http://vk.com/developers.php?oid=-1&p=photos.get) – возвращает список фотографий в альбоме;
@@ -36,18 +37,18 @@
 В планах:
 
 * [photos.getById](http://vk.com/developers.php?oid=-1&p=photos.getById) – возвращает информацию о фотографиях;
+* [photos.getComments](http://vk.com/developers.php?oid=-1&p=photos.getComments) – возвращает список комментариев к фотографии;
+* [photos.getAllComments](http://vk.com/developers.php?oid=-1&p=photos.getAllComments) – возвращает список комментариев к альбому или ко всем альбомам;
+* [likes.getList](http://vk.com/developers.php?oid=-1&p=photos.getAllComments) – возвращает список пользователей, которые добавили объект в список «Мне нравится».
 
-## Использование парсера
+Использование парсера
+---------------------
 
 * Получение количества комментариев к фотографии;
 * Получение количества лайков фотографии;
 
-В планах:
-
-* Получение комментариев к фотографии;
-* Получение лайков фотографии;
-
-## Примеры использования
+Примеры использования
+---------------------
 
 ### Получение фотоальбомов группы через метод группы
 

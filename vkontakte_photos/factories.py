@@ -4,20 +4,20 @@ from datetime import datetime
 import factory
 import random
 
-class AlbumFactory(factory.Factory):
+class AlbumFactory(factory.DjangoModelFactory):
     FACTORY_FOR = Album
 
-    remote_id = factory.Sequence(lambda n: '%s_%s' % (n, n))
+    remote_id = factory.LazyAttributeSequence(lambda o, n: '-%s_%s' % (o.group.remote_id, n))
     thumb_id = factory.Sequence(lambda n: n)
 
     created = datetime.now()
     updated = datetime.now()
     size = 1
 
-class PhotoFactory(factory.Factory):
+class PhotoFactory(factory.DjangoModelFactory):
     FACTORY_FOR = Photo
 
-    remote_id = factory.Sequence(lambda n: '%s_%s' % (n, n))
+    remote_id = factory.LazyAttributeSequence(lambda o, n: '%s_%s' % (o.group.remote_id, n))
     user = factory.SubFactory(UserFactory)
 
     created = datetime.now()
