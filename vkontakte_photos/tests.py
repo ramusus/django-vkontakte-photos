@@ -23,7 +23,7 @@ class VkontaktePhotosTest(TestCase):
 
         self.assertTrue(len(albums) > 0)
         self.assertEqual(Album.objects.count(), len(albums))
-        self.assertEqual(albums[0].group, group) 
+        self.assertEqual(albums[0].group, group)
 
     def test_fetch_group_photos(self):
 
@@ -32,31 +32,44 @@ class VkontaktePhotosTest(TestCase):
 
         self.assertEqual(Photo.objects.count(), 0)
 
-        photos = album.fetch_photos()
+        photos = album.fetch_photos(extended=True)
 
         self.assertTrue(len(photos) > 0)
         self.assertEqual(Photo.objects.count(), len(photos))
         self.assertEqual(photos[0].group, group)
         self.assertEqual(photos[0].album, album)
+        self.assertTrue(photos[0].likes > 0)
+        self.assertTrue(photos[0].comments > 0)
 
     def test_fetch_photo_likes(self):
+
+        group = GroupFactory(remote_id=GROUP_ID)
+        album = AlbumFactory(remote_id=ALBUM_ID, group=group)
+        photo = PhotoFactory(remote_id=PHOTO_ID, album=album, group=group)
+
+        self.assertEqual(photo.likes, 0)
+        users = photo.fetch_likes(all=True)
+        self.assertTrue(photo.likes > 0)
+        self.assertEqual(photo.likes, len(users))
+
+    def test_fetch_photo_likes_parser(self):
 
         group = GroupFactory(remote_id=GROUP_ID)
         album = AlbumFactory(remote_id=ALBUM_ID, group=group)
         photo = PhotoFactory(remote_id=PHOTO_ID, album=album)
 
         self.assertEqual(photo.likes, 0)
-        photo.update_likes()
+        photo.fetch_likes_parser()
         self.assertTrue(photo.likes > 0)
 
-    def test_fetch_photo_comments(self):
+    def test_fetch_photo_comments_parser(self):
 
         group = GroupFactory(remote_id=GROUP_ID)
         album = AlbumFactory(remote_id=ALBUM_ID, group=group)
         photo = PhotoFactory(remote_id=PHOTO_ID, album=album)
 
         self.assertEqual(photo.comments, 0)
-        photo.fetch_comments()
+        photo.fetch_comments_parser()
         self.assertTrue(photo.comments > 0)
 
     def test_parse_album(self):

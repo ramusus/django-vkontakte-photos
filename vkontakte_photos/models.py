@@ -3,6 +3,7 @@ from django.db import models
 from vkontakte_api.utils import api_call
 from vkontakte_api import fields
 from vkontakte_api.models import VkontakteManager, VkontakteModel
+from vkontakte_api.decorators import fetch_all
 from vkontakte_users.models import User
 from vkontakte_groups.models import Group
 from parser import VkontaktePhotosParser
@@ -157,6 +158,7 @@ class Photo(PhotosIDModel):
 
     remote_pk_field = 'pid'
     slug_prefix = 'photo'
+    likes_type = 'photo'
 
     album = models.ForeignKey(Album, verbose_name=u'Альбом', related_name='photos')
 
@@ -177,6 +179,8 @@ class Photo(PhotosIDModel):
     likes = models.PositiveIntegerField(u'Лайков', default=0)
     comments = models.PositiveIntegerField(u'Комментариев', default=0)
     tags = models.PositiveIntegerField(u'Тегов', default=0)
+
+    like_users = models.ManyToManyField(User, blank=True, related_name='like_photos')
 
     text = models.TextField()
 
@@ -202,7 +206,7 @@ class Photo(PhotosIDModel):
         except Album.DoesNotExist:
             raise Exception('Impossible to save photo for unexisted album %s' % (self.get_remote_id(response['aid']),))
 
-    def fetch_comments(self):
+    def fetch_comments_parser(self):
         '''
         Fetch total ammount of comments
         TODO: implement fetching comments
@@ -218,7 +222,7 @@ class Photo(PhotosIDModel):
         self.comments = len(parser.content_bs.findAll('div', {'class': 'clear_fix pv_comment '}))
         self.save()
 
-    def update_likes(self):
+    def fetch_likes_parser(self):
         '''
         Fetch total ammount of likes
         TODO: implement fetching users who likes
@@ -235,5 +239,28 @@ class Photo(PhotosIDModel):
         if len(values):
             self.likes = int(values[0])
             self.save()
+
+    def update_and_get_likes(self, *args, **kwargs):
+        self.likes = self.like_users.count()
+        self.save()
+        return self.like_users.all()
+
+    @fetch_all(return_all=update_and_get_likes, default_count=1000)
+    def fetch_likes(self, offset=0, *args, **kwargs):
+
+        kwargs['offset'] = int(offset)
+        kwargs['item_id'] = self.remote_id.split('_')[1]
+        kwargs['owner_id'] = self.group.remote_id
+        if isinstance(self.group, Group):
+            kwargs['owner_id'] *= -1
+
+        log.debug('Fetching likes of %s "%s" of owner "%s", offset %d' % (self._meta.module_name, self.remote_id, self.group, offset))
+
+        ids = super(Photo, self).fetch_likes(*args, **kwargs)
+        users = User.remote.fetch(ids=ids) if ids else []
+        for user in users:
+            self.like_users.add(user)
+
+        return users
 
 import signals

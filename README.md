@@ -33,19 +33,21 @@ Django Vkontakte Photos [![Build Status](https://travis-ci.org/ramusus/django-vk
 
 * [photos.getAlbums](http://vk.com/developers.php?oid=-1&p=photos.getAlbums) – возвращает список альбомов пользователя;
 * [photos.get](http://vk.com/developers.php?oid=-1&p=photos.get) – возвращает список фотографий в альбоме;
+* [likes.getList](http://vk.com/developers.php?oid=-1&p=photos.getAllComments) – возвращает список пользователей, которые добавили объект в список «Мне нравится».
 
 В планах:
 
 * [photos.getById](http://vk.com/developers.php?oid=-1&p=photos.getById) – возвращает информацию о фотографиях;
 * [photos.getComments](http://vk.com/developers.php?oid=-1&p=photos.getComments) – возвращает список комментариев к фотографии;
 * [photos.getAllComments](http://vk.com/developers.php?oid=-1&p=photos.getAllComments) – возвращает список комментариев к альбому или ко всем альбомам;
-* [likes.getList](http://vk.com/developers.php?oid=-1&p=photos.getAllComments) – возвращает список пользователей, которые добавили объект в список «Мне нравится».
 
 Использование парсера
 ---------------------
 
-* Получение количества комментариев к фотографии;
-* Получение количества лайков фотографии;
+* Получение количества комментариев к фотографии; *
+* Получение количества лайков фотографии; *
+
+(*) Дублирование функционала API
 
 Примеры использования
 ---------------------
