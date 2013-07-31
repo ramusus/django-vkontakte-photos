@@ -180,7 +180,7 @@ class Photo(PhotosIDModel):
     comments = models.PositiveIntegerField(u'Комментариев', default=0)
     tags = models.PositiveIntegerField(u'Тегов', default=0)
 
-    like_users = models.ManyToManyField(User, blank=True, related_name='like_photos')
+    like_users = models.ManyToManyField(User, related_name='like_photos')
 
     text = models.TextField()
 
