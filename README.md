@@ -13,7 +13,9 @@ Django Vkontakte Photos [![Build Status](https://travis-ci.org/ramusus/django-vk
     INSTALLED_APPS = (
         ...
         'oauth_tokens',
+        'taggit',
         'vkontakte_api',
+        'vkontakte_places,
         'vkontakte_groups',
         'vkontakte_users',
         'vkontakte_photos',
@@ -77,7 +79,7 @@ Django Vkontakte Photos [![Build Status](https://travis-ci.org/ramusus/django-vk
 ### Получение фотоальбомов группы через менеджер
 
     >>> from vkontakte_groups.models import Group
-    >>> from vkontakte_board.models import Album
+    >>> from vkontakte_photos.models import Album
     >>> group = Group.remote.fetch(ids=[16297716])[0]
     >>> Album.remote.fetch(group=group, ids=[106769855])
     [<Album: Coca-Cola привозила кубок мира по футболу FIFA>]
@@ -88,7 +90,7 @@ Django Vkontakte Photos [![Build Status](https://travis-ci.org/ramusus/django-vk
 [`django-vkontakte-users`](http://github.com/ramusus/django-vkontakte-users/) и добавить его в `INSTALLED_APPS`
 
     >>> from vkontakte_users.models import User
-    >>> from vkontakte_board.models import Album, Photo
+    >>> from vkontakte_photos.models import Album, Photo
     >>> user = User.remote.fetch(ids=[1])[0]
     >>> album = Album.remote.fetch(user=user, ids=[159337866])[0]
     >>> Photo.remote.fetch(album=album)
