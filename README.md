@@ -1,5 +1,7 @@
-Django Vkontakte Photos [![Build Status](https://travis-ci.org/ramusus/django-vkontakte-photos.png?branch=master)](https://travis-ci.org/ramusus/django-vkontakte-photos) [![Coverage Status](https://coveralls.io/repos/ramusus/django-vkontakte-photos/badge.png?branch=master)](https://coveralls.io/r/ramusus/django-vkontakte-photos)
+Django Vkontakte Photos
 =======================
+
+[![PyPI version](https://badge.fury.io/py/django-vkontakte-photos.png)](http://badge.fury.io/py/django-vkontakte-photos) [![Build Status](https://travis-ci.org/ramusus/django-vkontakte-photos.png?branch=master)](https://travis-ci.org/ramusus/django-vkontakte-photos) [![Coverage Status](https://coveralls.io/repos/ramusus/django-vkontakte-photos/badge.png?branch=master)](https://coveralls.io/r/ramusus/django-vkontakte-photos)
 
 Приложение позволяет взаимодействовать с фотоальбомами и фотографиями Вконтакте используя стандартные модели Django через Вконтакте API
 
