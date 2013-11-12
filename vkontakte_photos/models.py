@@ -132,8 +132,8 @@ class Album(PhotosIDModel):
     title = models.CharField(max_length='200')
     description = models.TextField()
 
-    created = models.DateTimeField()
-    updated = models.DateTimeField(null=True)
+    created = models.DateTimeField(db_index=True)
+    updated = models.DateTimeField(null=True, db_index=True)
 
     size = models.PositiveIntegerField(u'Кол-во фотографий')
     privacy = models.PositiveIntegerField(u'Уровень доступа к альбому', null=True, choices=ALBUM_PRIVACY_CHOCIES)
@@ -184,7 +184,7 @@ class Photo(PhotosIDModel):
 
     text = models.TextField()
 
-    created = models.DateTimeField()
+    created = models.DateTimeField(db_index=True)
 
     objects = models.Manager()
     remote = PhotoRemoteManager(remote_pk=('remote_id',), methods={
