@@ -158,7 +158,6 @@ class Photo(PhotosIDModel):
 
     remote_pk_field = 'pid'
     slug_prefix = 'photo'
-    likes_type = 'photo'
 
     album = models.ForeignKey(Album, verbose_name=u'Альбом', related_name='photos')
 
@@ -248,6 +247,7 @@ class Photo(PhotosIDModel):
     @fetch_all(return_all=update_and_get_likes, default_count=1000)
     def fetch_likes(self, offset=0, *args, **kwargs):
 
+        kwargs['likes_type'] = 'photo'
         kwargs['offset'] = int(offset)
         kwargs['item_id'] = self.remote_id.split('_')[1]
         kwargs['owner_id'] = self.group.remote_id
@@ -256,11 +256,7 @@ class Photo(PhotosIDModel):
 
         log.debug('Fetching likes of %s "%s" of owner "%s", offset %d' % (self._meta.module_name, self.remote_id, self.group, offset))
 
-        ids = super(Photo, self).fetch_likes(*args, **kwargs)
-        users = User.remote.fetch(ids=ids) if ids else []
-        for user in users:
-            self.like_users.add(user)
-
+        users = User.remote.fetch_instance_likes(self, *args, **kwargs)
         return users
 
 import signals

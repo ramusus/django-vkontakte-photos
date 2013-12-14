@@ -2,10 +2,11 @@
 from django.test import TestCase
 from models import Album, Photo
 from factories import AlbumFactory, PhotoFactory
-from vkontakte_users.factories import UserFactory
+from vkontakte_users.factories import UserFactory, User
 from vkontakte_groups.factories import GroupFactory
 from datetime import datetime
 import simplejson as json
+import mock
 
 GROUP_ID = 16297716
 ALBUM_ID = '-16297716_154228728'
@@ -41,16 +42,22 @@ class VkontaktePhotosTest(TestCase):
         self.assertTrue(photos[0].likes > 0)
         self.assertTrue(photos[0].comments > 0)
 
-    def test_fetch_photo_likes(self):
+    @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=lambda ids, **kw: User.objects.filter(id__in=[user.id for user in [UserFactory.create(remote_id=i) for i in ids]]))
+    def test_fetch_photo_likes(self, *kwargs):
 
         group = GroupFactory(remote_id=GROUP_ID)
         album = AlbumFactory(remote_id=ALBUM_ID, group=group)
         photo = PhotoFactory(remote_id=PHOTO_ID, album=album, group=group)
 
         self.assertEqual(photo.likes, 0)
+        users_initial = User.objects.count()
+
         users = photo.fetch_likes(all=True)
+
         self.assertTrue(photo.likes > 0)
         self.assertEqual(photo.likes, len(users))
+        self.assertEqual(photo.likes, User.objects.count() - users_initial)
+        self.assertEqual(photo.likes, photo.like_users.count())
 
     def test_fetch_photo_likes_parser(self):
 
