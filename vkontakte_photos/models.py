@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from django.db import models
+from django.db import models, transaction
 from vkontakte_api.utils import api_call
 from vkontakte_api import fields
 from vkontakte_api.models import VkontakteManager, VkontakteModel
@@ -21,6 +21,7 @@ ALBUM_PRIVACY_CHOCIES = (
 
 class AlbumRemoteManager(VkontakteManager):
 
+    @transaction.commit_on_success
     def fetch(self, user=None, group=None, ids=None, need_covers=False):
         if not user and not group:
             raise ValueError("You must specify user of group, which albums you want to fetch")
@@ -49,6 +50,7 @@ class AlbumRemoteManager(VkontakteManager):
 
 class PhotoRemoteManager(VkontakteManager):
 
+    @transaction.commit_on_success
     def fetch(self, album, ids=None, limit=None, extended=False, offset=0, photo_sizes=False):
         if ids and not isinstance(ids, (tuple, list)):
             raise ValueError("Attribute 'ids' should be tuple or list")
@@ -147,6 +149,7 @@ class Album(PhotosIDModel):
     def __unicode__(self):
         return self.title
 
+    @transaction.commit_on_success
     def fetch_photos(self, *args, **kwargs):
         return Photo.remote.fetch(album=self, *args, **kwargs)
 
@@ -244,6 +247,7 @@ class Photo(PhotosIDModel):
         self.save()
         return self.like_users.all()
 
+    @transaction.commit_on_success
     @fetch_all(return_all=update_and_get_likes, default_count=1000)
     def fetch_likes(self, offset=0, *args, **kwargs):
 
