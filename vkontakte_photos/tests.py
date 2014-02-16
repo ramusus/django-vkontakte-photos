@@ -26,6 +26,27 @@ class VkontaktePhotosTest(TestCase):
         self.assertEqual(Album.objects.count(), len(albums))
         self.assertEqual(albums[0].group, group)
 
+        # check force ordering
+        self.assertListEqual(list(albums), list(Album.objects.order_by('-updated')))
+
+        # testing `after` parameter
+        after = Album.objects.order_by('-updated')[10].updated
+
+        Album.objects.all().delete()
+        self.assertEqual(Album.objects.count(), 0)
+
+        albums = group.fetch_albums(after=after)
+        self.assertTrue(len(albums) == Album.objects.count() == 11)
+
+        # testing `before` parameter
+        before = Album.objects.order_by('-updated')[5].updated
+
+        Album.objects.all().delete()
+        self.assertEqual(Album.objects.count(), 0)
+
+        albums = group.fetch_albums(before=before, after=after)
+        self.assertTrue(len(albums) == Album.objects.count() == 6)
+
     def test_fetch_group_photos(self):
 
         group = GroupFactory(remote_id=GROUP_ID)
@@ -41,6 +62,24 @@ class VkontaktePhotosTest(TestCase):
         self.assertEqual(photos[0].album, album)
         self.assertTrue(photos[0].likes > 0)
         self.assertTrue(photos[0].comments > 0)
+
+        # testing `after` parameter
+        after = Photo.objects.order_by('-created')[4].created
+
+        Photo.objects.all().delete()
+        self.assertEqual(Photo.objects.count(), 0)
+
+        photos = album.fetch_photos(after=after)
+        self.assertTrue(len(photos) == Photo.objects.count() == 5)
+
+        # testing `before` parameter
+        before = Photo.objects.order_by('-created')[2].created
+
+        Photo.objects.all().delete()
+        self.assertEqual(Photo.objects.count(), 0)
+
+        photos = album.fetch_photos(before=before, after=after)
+        self.assertTrue(len(photos) == Photo.objects.count() == 3)
 
     @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=lambda ids, **kw: User.objects.filter(id__in=[user.id for user in [UserFactory.create(remote_id=i) for i in ids]]))
     def test_fetch_photo_likes(self, *kwargs):

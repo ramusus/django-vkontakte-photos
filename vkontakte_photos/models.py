@@ -2,7 +2,7 @@
 from django.db import models, transaction
 from vkontakte_api.utils import api_call
 from vkontakte_api import fields
-from vkontakte_api.models import VkontakteManager, VkontakteModel
+from vkontakte_api.models import VkontakteTimelineManager, VkontakteModel
 from vkontakte_api.decorators import fetch_all
 from vkontakte_users.models import User
 from vkontakte_groups.models import Group
@@ -19,14 +19,21 @@ ALBUM_PRIVACY_CHOCIES = (
     (3, u'Только я')
 )
 
-class AlbumRemoteManager(VkontakteManager):
+class AlbumRemoteManager(VkontakteTimelineManager):
+
+    timeline_cut_fieldname = 'updated'
+    timeline_force_ordering = True
 
     @transaction.commit_on_success
-    def fetch(self, user=None, group=None, ids=None, need_covers=False):
+    def fetch(self, user=None, group=None, ids=None, need_covers=False, before=None, after=None, **kwargs):
         if not user and not group:
             raise ValueError("You must specify user of group, which albums you want to fetch")
         if ids and not isinstance(ids, (tuple, list)):
             raise ValueError("Attribute 'ids' should be tuple or list")
+        if before and not after:
+            raise ValueError("Attribute `before` should be specified with attribute `after`")
+        if before and before < after:
+            raise ValueError("Attribute `before` should be later, than attribute `after`")
 
         kwargs = {
             #need_covers
@@ -46,17 +53,31 @@ class AlbumRemoteManager(VkontakteManager):
         if ids:
             kwargs.update({'aids': ','.join(map(str, ids))})
 
+        # special parameters
+        kwargs['after'] = after
+        kwargs['before'] = before
+
         return super(AlbumRemoteManager, self).fetch(**kwargs)
 
-class PhotoRemoteManager(VkontakteManager):
+class PhotoRemoteManager(VkontakteTimelineManager):
+
+    timeline_cut_fieldname = 'created'
+    timeline_force_ordering = True
 
     @transaction.commit_on_success
-    def fetch(self, album, ids=None, limit=None, extended=False, offset=0, photo_sizes=False):
+    def fetch(self, album, ids=None, limit=None, extended=False, offset=0, photo_sizes=False, before=None, rev=0, after=None, **kwargs):
         if ids and not isinstance(ids, (tuple, list)):
             raise ValueError("Attribute 'ids' should be tuple or list")
+        if before and not after:
+            raise ValueError("Attribute `before` should be specified with attribute `after`")
+        if before and before < after:
+            raise ValueError("Attribute `before` should be later, than attribute `after`")
+        # TODO: it seems rev attribute make no sence for order of response
+        if rev == 1 and (after or before):
+            raise ValueError("Attribute `rev` should be equal to 0 with defined `after` attribute")
 
         kwargs = {
-            'aid': album.remote_id.split('_')[1],
+            'album_id': album.remote_id.split('_')[1],
             'extended': int(extended),
             'offset': int(offset),
             #photo_sizes
@@ -68,9 +89,15 @@ class PhotoRemoteManager(VkontakteManager):
         elif album.group:
             kwargs.update({'gid': album.group.remote_id})
         if ids:
-            kwargs.update({'pids': ','.join(map(str, ids))})
+            kwargs.update({'photo_ids': ','.join(map(str, ids))})
         if limit:
             kwargs.update({'limit': limit})
+
+        kwargs['rev'] = int(rev)
+
+        # special parameters
+        kwargs['after'] = after
+        kwargs['before'] = before
 
         # TODO: добавить поля
         #feed
@@ -119,7 +146,6 @@ class Album(PhotosIDModel):
     class Meta:
         verbose_name = u'Альбом фотографий Вконтакте'
         verbose_name_plural = u'Альбомы фотографий Вконтакте'
-        ordering = ['remote_id']
 
     remote_pk_field = 'aid'
     slug_prefix = 'album'
@@ -157,7 +183,6 @@ class Photo(PhotosIDModel):
     class Meta:
         verbose_name = u'Фотография Вконтакте'
         verbose_name_plural = u'Фотографии Вконтакте'
-        ordering = ['remote_id']
 
     remote_pk_field = 'pid'
     slug_prefix = 'photo'
