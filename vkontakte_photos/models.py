@@ -107,7 +107,70 @@ class PhotoRemoteManager(VkontakteTimelineManager):
 
         return super(PhotoRemoteManager, self).fetch(**kwargs)
 
-class PhotosIDModel(VkontakteModel):
+class CommentRemoteManager(VkontakteTimelineManager):
+
+    @transaction.commit_on_success
+    @fetch_all(default_count=100)
+    def fetch_for_album(self, album, offset=0, count=100, sort='asc', need_likes=True, before=None, after=None, **kwargs):
+        pass
+
+    @transaction.commit_on_success
+    @fetch_all(default_count=100)
+    def fetch_for_photo(self, photo, offset=0, count=100, sort='asc', need_likes=True, before=None, after=None, **kwargs):
+        if count > 100:
+            raise ValueError("Attribute 'count' can not be more than 100")
+        if sort not in ['asc','desc']:
+            raise ValueError("Attribute 'sort' should be equal to 'asc' or 'desc'")
+        if sort == 'asc' and after:
+            raise ValueError("Attribute `sort` should be equal to 'desc' with defined `after` attribute")
+        if before and not after:
+            raise ValueError("Attribute `before` should be specified with attribute `after`")
+        if before and before < after:
+            raise ValueError("Attribute `before` should be later, than attribute `after`")
+
+        # owner_id идентификатор пользователя или сообщества, которому принадлежит фотография.
+        # Обратите внимание, идентификатор сообщества в параметре owner_id необходимо указывать со знаком "-" — например, owner_id=-1 соответствует идентификатору сообщества ВКонтакте API (club1)
+        # int (числовое значение), по умолчанию идентификатор текущего пользователя
+        if photo.owner:
+            kwargs['owner_id'] = photo.owner.remote_id
+        elif photo.group:
+            kwargs['owner_id'] = -1 * photo.group.remote_id
+
+        # photo_id идентификатор фотографии.
+        # int (числовое значение), обязательный параметр
+        kwargs['photo_id'] = photo.remote_id.split('_')[1]
+
+        # need_likes 1 — будет возвращено дополнительное поле likes. По умолчанию поле likes не возвращается.
+        # флаг, может принимать значения 1 или 0
+        kwargs['need_likes'] = int(need_likes)
+
+        # offset смещение, необходимое для выборки определенного подмножества комментариев. По умолчанию — 0.
+        # положительное число
+        kwargs['offset'] = int(offset)
+
+        # count количество комментариев, которое необходимо получить.
+        # положительное число, по умолчанию 20, максимальное значение 100
+        kwargs['count'] = int(count)
+
+        # sort порядок сортировки комментариев (asc — от старых к новым, desc - от новых к старым)
+        # строка
+        kwargs['sort'] = sort
+
+        # special parameters
+        kwargs['after'] = after
+        kwargs['before'] = before
+
+        kwargs['extra_fields'] = {'photo_id': photo.id}
+#        try:
+        return super(CommentRemoteManager, self).fetch(**kwargs)
+#         except VkontakteError, e:
+#             if e.code == 100 and 'invalid tid' in e.description:
+#                 log.error("Impossible to fetch comments for unexisted topic ID=%s" % topic.remote_id)
+#                 return self.model.objects.none()
+#             else:
+#                 raise e
+
+class PhotosAbstractModel(VkontakteModel):
     class Meta:
         abstract = True
 
@@ -138,11 +201,11 @@ class PhotosIDModel(VkontakteModel):
         else:
             self.group = Group.objects.get_or_create(remote_id=abs(owner_id))[0]
 
-        super(PhotosIDModel, self).parse(response)
+        super(PhotosAbstractModel, self).parse(response)
 
         self.remote_id = self.get_remote_id(self.remote_id)
 
-class Album(PhotosIDModel):
+class Album(PhotosAbstractModel):
     class Meta:
         verbose_name = u'Альбом фотографий Вконтакте'
         verbose_name_plural = u'Альбомы фотографий Вконтакте'
@@ -179,7 +242,7 @@ class Album(PhotosIDModel):
     def fetch_photos(self, *args, **kwargs):
         return Photo.remote.fetch(album=self, *args, **kwargs)
 
-class Photo(PhotosIDModel):
+class Photo(PhotosAbstractModel):
     class Meta:
         verbose_name = u'Фотография Вконтакте'
         verbose_name_plural = u'Фотографии Вконтакте'
@@ -203,9 +266,9 @@ class Photo(PhotosIDModel):
     width = models.PositiveIntegerField(null=True)
     height = models.PositiveIntegerField(null=True)
 
-    likes = models.PositiveIntegerField(u'Лайков', default=0)
-    comments = models.PositiveIntegerField(u'Комментариев', default=0)
-    tags = models.PositiveIntegerField(u'Тегов', default=0)
+    likes_count = models.PositiveIntegerField(u'Лайков', default=0)
+    comments_count = models.PositiveIntegerField(u'Комментариев', default=0)
+    tags_count = models.PositiveIntegerField(u'Тегов', default=0)
 
     like_users = models.ManyToManyField(User, related_name='like_photos')
 
@@ -287,5 +350,54 @@ class Photo(PhotosIDModel):
 
         users = User.remote.fetch_instance_likes(self, *args, **kwargs)
         return users
+
+    @transaction.commit_on_success
+    def fetch_comments(self, *args, **kwargs):
+        return Comment.remote.fetch_for_photo(photo=self, *args, **kwargs)
+
+class Comment(VkontakteModel):
+    class Meta:
+        verbose_name = u'Коммментарий фотографии Вконтакте'
+        verbose_name_plural = u'Коммментарии фотографий Вконтакте'
+
+    methods_namespace = 'photos'
+    remote_pk_field = 'cid'
+
+    remote_id = models.CharField(u'ID', max_length='20', help_text=u'Уникальный идентификатор', unique=True)
+
+    photo = models.ForeignKey(Photo, verbose_name=u'Фотография', related_name='comments')
+
+    author = models.ForeignKey(User, related_name='photo_comments', verbose_name=u'Aвтор комментария')
+    date = models.DateTimeField(help_text=u'Дата создания', db_index=True)
+    text = models.TextField(u'Текст сообщения')
+    #attachments - присутствует только если у сообщения есть прикрепления, содержит массив объектов (фотографии, ссылки и т.п.). Более подробная информация представлена на странице Описание поля attachments
+
+    # TODO: implement with tests
+#    likes = models.PositiveIntegerField(u'Кол-во лайков', default=0)
+
+    objects = models.Manager()
+    remote = CommentRemoteManager(remote_pk=('remote_id',), methods={
+        'get': 'getComments',
+    })
+
+#     @property
+#     def slug(self):
+#         return self.slug_prefix + str(self.photo.remote_id) + '?post=' + self.remote_id.split('_')[2]
+
+    def parse(self, response):
+        self.author = User.objects.get_or_create(remote_id=response.pop('from_id'))[0]
+        # TODO: add parsing attachments and polls
+        if 'attachments' in response:
+            response.pop('attachments')
+        if 'poll' in response:
+            response.pop('poll')
+
+        if 'message' in response:
+            response['text'] = response.pop('message')
+
+        super(Comment, self).parse(response)
+
+        if '_' not in str(self.remote_id):
+            self.remote_id = '%s_%s' % (self.photo.remote_id.split('_')[0], self.remote_id)
 
 import signals

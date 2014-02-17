@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from django.test import TestCase
-from models import Album, Photo
+from models import Album, Photo, Comment
 from factories import AlbumFactory, PhotoFactory
 from vkontakte_users.factories import UserFactory, User
 from vkontakte_groups.factories import GroupFactory
@@ -80,6 +80,33 @@ class VkontaktePhotosTest(TestCase):
 
         photos = album.fetch_photos(before=before, after=after)
         self.assertTrue(len(photos) == Photo.objects.count() == 3)
+
+    @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=lambda ids, **kw: User.objects.filter(id__in=[user.id for user in [UserFactory.create(remote_id=i) for i in ids]]))
+    def test_fetch_photo_comments(self, *kwargs):
+
+        group = GroupFactory(remote_id=GROUP_ID)
+        album = AlbumFactory(remote_id=ALBUM_ID, group=group)
+        photo = PhotoFactory(remote_id=PHOTO_ID, album=album, group=group)
+
+        comments = photo.fetch_comments(count=20, sort='desc')
+        self.assertTrue(len(comments) == photo.comments.count() == 20)
+
+        # testing `after` parameter
+        after = Comment.objects.order_by('date')[0].date
+
+        Comment.objects.all().delete()
+        self.assertEqual(Comment.objects.count(), 0)
+
+        comments = photo.fetch_comments(after=after, sort='desc')
+        self.assertTrue(len(comments) == Comment.objects.count() == photo.comments.count() == 20)
+
+        # testing `all` parameter
+        Comment.objects.all().delete()
+        self.assertEqual(Comment.objects.count(), 0)
+
+        comments = photo.fetch_comments(all=True)
+        self.assertTrue(len(comments) == Comment.objects.count() == photo.comments.count())
+        self.assertTrue(photo.comments.count() > 20)
 
     @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=lambda ids, **kw: User.objects.filter(id__in=[user.id for user in [UserFactory.create(remote_id=i) for i in ids]]))
     def test_fetch_photo_likes(self, *kwargs):
@@ -191,3 +218,22 @@ class VkontaktePhotosTest(TestCase):
         self.assertEqual(instance.remote_id, '-6492_146772677')
         self.assertEqual(instance.album, album)
         self.assertEqual(instance.group, group)
+
+    def test_parse_comment(self):
+
+        response = '''{"response":[21, {"date": 1387173931, "message": "[id94721323|\u0410\u043b\u0435\u043d\u0447\u0438\u043a], \u043d\u0435 1 \u0430 3 \u0431\u0430\u043d\u043a\u0430 5 \u043b\u0438\u0442\u0440\u043e\u0432 =20 \u0431\u0430\u043b\u043b\u043e\u0432", "from_id": 232760293, "likes": {"count": 1, "can_like": 1, "user_likes": 0}, "cid": 91121},
+            {"date": 1386245221, "message": "\u0410 1\u043b. \u0432 \u043f\u043e\u0434\u0430\u0440\u043e\u043a,\u0431\u043e\u043d\u0443\u0441 +))))", "from_id": 94721323, "likes": {"count": 0, "can_like": 1, "user_likes": 0}, "cid": 88976},
+            {"date": 1354592120, "message": "\u0445\u0430\u0445<br>", "from_id": 138571769, "likes": {"count": 0, "can_like": 1, "user_likes": 0}, "cid": 50392}]}
+        '''
+        group = GroupFactory(remote_id=GROUP_ID)
+        album = AlbumFactory(remote_id=ALBUM_ID, group=group)
+        photo = PhotoFactory(remote_id=PHOTO_ID, album=album)
+        instance = Comment(photo=photo)
+        instance.parse(json.loads(response)['response'][1])
+        instance.save()
+
+        self.assertEqual(instance.remote_id, '-%s_91121' % GROUP_ID)
+        self.assertEqual(instance.photo, photo)
+        self.assertEqual(instance.author.remote_id, 232760293)
+        self.assertTrue(len(instance.text) > 10)
+        self.assertIsNotNone(instance.date)
