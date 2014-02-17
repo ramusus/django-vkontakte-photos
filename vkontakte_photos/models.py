@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 from django.db import models, transaction
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes import generic
 from vkontakte_api.utils import api_call
 from vkontakte_api import fields
-from vkontakte_api.models import VkontakteTimelineManager, VkontakteModel
+from vkontakte_api.models import VkontakteTimelineManager, VkontakteModel, VkontakteCRUDModel
 from vkontakte_api.decorators import fetch_all
 from vkontakte_users.models import User
 from vkontakte_groups.models import Group
@@ -111,12 +113,12 @@ class CommentRemoteManager(VkontakteTimelineManager):
 
     @transaction.commit_on_success
     @fetch_all(default_count=100)
-    def fetch_for_album(self, album, offset=0, count=100, sort='asc', need_likes=True, before=None, after=None, **kwargs):
-        pass
+    def fetch_album(self, album, offset=0, count=100, sort='asc', need_likes=True, before=None, after=None, **kwargs):
+        raise NotImplementedError
 
     @transaction.commit_on_success
     @fetch_all(default_count=100)
-    def fetch_for_photo(self, photo, offset=0, count=100, sort='asc', need_likes=True, before=None, after=None, **kwargs):
+    def fetch_photo(self, photo, offset=0, count=100, sort='asc', need_likes=True, before=None, after=None, **kwargs):
         if count > 100:
             raise ValueError("Attribute 'count' can not be more than 100")
         if sort not in ['asc','desc']:
@@ -179,12 +181,17 @@ class PhotosAbstractModel(VkontakteModel):
     remote_id = models.CharField(u'ID', max_length='20', help_text=u'Уникальный идентификатор', unique=True)
 
     @property
+    def remote_id_short(self):
+        return self.remote_id.split('_')[1]
+
+    @property
     def slug(self):
         return self.slug_prefix + str(self.remote_id)
 
     def get_remote_id(self, id):
         '''
         Returns unique remote_id, contains from 2 parts: remote_id of owner or group and remote_id of photo object
+        TODO: перейти на ContentType и избавиться от метода
         '''
         if self.owner:
             remote_id = self.owner.remote_id
@@ -194,7 +201,7 @@ class PhotosAbstractModel(VkontakteModel):
         return '%s_%s' % (remote_id, id)
 
     def parse(self, response):
-
+        # TODO: перейти на ContentType и избавиться от метода
         owner_id = int(response.pop('owner_id'))
         if owner_id > 0:
             self.owner = User.objects.get_or_create(remote_id=owner_id)[0]
@@ -353,21 +360,26 @@ class Photo(PhotosAbstractModel):
 
     @transaction.commit_on_success
     def fetch_comments(self, *args, **kwargs):
-        return Comment.remote.fetch_for_photo(photo=self, *args, **kwargs)
+        return Comment.remote.fetch_photo(photo=self, *args, **kwargs)
 
-class Comment(VkontakteModel):
+class Comment(VkontakteModel, VkontakteCRUDModel):
     class Meta:
         verbose_name = u'Коммментарий фотографии Вконтакте'
         verbose_name_plural = u'Коммментарии фотографий Вконтакте'
 
     methods_namespace = 'photos'
     remote_pk_field = 'cid'
+    fields_required_for_update = ['comment_id', 'owner_id']
+    _commit_remote = False
 
     remote_id = models.CharField(u'ID', max_length='20', help_text=u'Уникальный идентификатор', unique=True)
 
     photo = models.ForeignKey(Photo, verbose_name=u'Фотография', related_name='comments')
 
-    author = models.ForeignKey(User, related_name='photo_comments', verbose_name=u'Aвтор комментария')
+    author_content_type = models.ForeignKey(ContentType, related_name='photo_comments')
+    author_id = models.PositiveIntegerField(db_index=True)
+    author = generic.GenericForeignKey('author_content_type', 'author_id')
+
     date = models.DateTimeField(help_text=u'Дата создания', db_index=True)
     text = models.TextField(u'Текст сообщения')
     #attachments - присутствует только если у сообщения есть прикрепления, содержит массив объектов (фотографии, ссылки и т.п.). Более подробная информация представлена на странице Описание поля attachments
@@ -378,14 +390,70 @@ class Comment(VkontakteModel):
     objects = models.Manager()
     remote = CommentRemoteManager(remote_pk=('remote_id',), methods={
         'get': 'getComments',
+        'create': 'createComment',
+        'update': 'editComment',
+        'delete': 'deleteComment',
+        'restore': 'restoreComment',
     })
 
-#     @property
-#     def slug(self):
-#         return self.slug_prefix + str(self.photo.remote_id) + '?post=' + self.remote_id.split('_')[2]
+    @property
+    def remote_owner_id(self):
+        return self.photo.remote_id.split('_')[0]
+
+    @property
+    def remote_id_short(self):
+        return self.remote_id.split('_')[1]
+
+    def prepare_create_params(self, from_group=False, **kwargs):
+        if self.author == self.photo.group:
+            from_group = True
+        kwargs.update({
+            'owner_id': self.remote_owner_id,
+            'photo_id': self.photo.remote_id_short,
+            'message': self.text,
+#            'reply_to_comment': self.reply_for.id if self.reply_for else '',
+            'from_group': int(from_group),
+            'attachments': kwargs.get('attachments', ''),
+        })
+        return kwargs
+
+    def prepare_update_params(self, **kwargs):
+        kwargs.update({
+            'owner_id': self.remote_owner_id,
+            'comment_id': self.remote_id_short,
+            'message': self.text,
+            'attachments': kwargs.get('attachments', ''),
+        })
+        return kwargs
+
+    def prepare_delete_params(self):
+        return {
+            'owner_id': self.remote_owner_id,
+            'comment_id': self.remote_id_short
+        }
+
+    def parse_remote_id_from_response(self, response):
+        if response:
+            return '%s_%s' % (self.remote_owner_id, response)
+        return None
+
+    def get_or_create_group_or_user(self, remote_id):
+        if remote_id > 0:
+            Model = User
+        elif remote_id < 0:
+            Model = Group
+        else:
+            raise ValueError("remote_id shouldn't be equal to 0")
+
+        return Model.objects.get_or_create(remote_id=abs(remote_id))
 
     def parse(self, response):
-        self.author = User.objects.get_or_create(remote_id=response.pop('from_id'))[0]
+        # undocummented feature of API. if from_id == 101 -> comment by group
+        if response['from_id'] == 101:
+            self.author = self.photo.group
+        else:
+            self.author = self.get_or_create_group_or_user(response.pop('from_id'))[0]
+
         # TODO: add parsing attachments and polls
         if 'attachments' in response:
             response.pop('attachments')
@@ -398,6 +466,6 @@ class Comment(VkontakteModel):
         super(Comment, self).parse(response)
 
         if '_' not in str(self.remote_id):
-            self.remote_id = '%s_%s' % (self.photo.remote_id.split('_')[0], self.remote_id)
+            self.remote_id = '%s_%s' % (self.remote_owner_id, self.remote_id)
 
 import signals

@@ -35,15 +35,18 @@ Django Vkontakte Photos
 Покрытие методов API
 --------------------
 
-* [photos.getAlbums](http://vk.com/developers.php?oid=-1&p=photos.getAlbums) – возвращает список альбомов пользователя;
-* [photos.get](http://vk.com/developers.php?oid=-1&p=photos.get) – возвращает список фотографий в альбоме;
-* [likes.getList](http://vk.com/developers.php?oid=-1&p=photos.getAllComments) – возвращает список пользователей, которые добавили объект в список «Мне нравится».
+* [photos.getAlbums](http://vk.com/dev/photos.getAlbums) – возвращает список альбомов пользователя;
+* [photos.get](http://vk.com/dev/photos.get) – возвращает список фотографий в альбоме;
+* [photos.getComments](http://vk.com/dev/photos.getComments) – возвращает список комментариев к фотографии;
+* [photos.createComment](http://vk.com/dev/photos.createComments) – создает новый комментарий к фотографии;
+* [photos.deleteComment](http://vk.com/dev/photos.deleteComments) – сдаляет комментарий к фотографии;
+* [photos.restoreComment](http://vk.com/dev/photos.restoreComments) – восстанавливает удаленный комментарий к фотографии;
+* [photos.editComment](http://vk.com/dev/photos.editComments) – изменяет текст комментария к фотографии;
 
 В планах:
 
-* [photos.getById](http://vk.com/developers.php?oid=-1&p=photos.getById) – возвращает информацию о фотографиях;
-* [photos.getComments](http://vk.com/developers.php?oid=-1&p=photos.getComments) – возвращает список комментариев к фотографии;
-* [photos.getAllComments](http://vk.com/developers.php?oid=-1&p=photos.getAllComments) – возвращает список комментариев к альбому или ко всем альбомам;
+* [photos.getById](http://vk.com/dev/photos.getById) – возвращает информацию о фотографиях;
+* [photos.getAllComments](http://vk.com/dev/photos.getAllComments) – возвращает отсортированный в антихронологическом порядке список всех комментариев к конкретному альбому или ко всем альбомам пользователя.
 
 Использование парсера
 ---------------------

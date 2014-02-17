@@ -12,7 +12,19 @@ GROUP_ID = 16297716
 ALBUM_ID = '-16297716_154228728'
 PHOTO_ID = '-16297716_280118215'
 
+GROUP_CRUD_ID = 59154616
+PHOTO_CRUD_ID = '-59154616_321155660'
+ALBUM_CRUD_ID = '-59154616_180124643'
+USER_AUTHOR_ID = 201164356
+
 class VkontaktePhotosTest(TestCase):
+
+    def setUp(self):
+        self.objects_to_delete = []
+
+    def tearDown(self):
+        for object in self.objects_to_delete:
+            object.delete(commit_remote=True)
 
     def test_fetch_group_albums(self):
 
@@ -237,3 +249,58 @@ class VkontaktePhotosTest(TestCase):
         self.assertEqual(instance.author.remote_id, 232760293)
         self.assertTrue(len(instance.text) > 10)
         self.assertIsNotNone(instance.date)
+
+    def test_comment_crud_methods(self):
+        group = GroupFactory(remote_id=GROUP_CRUD_ID)
+        album = AlbumFactory(remote_id=ALBUM_CRUD_ID, group=group)
+        photo = PhotoFactory(remote_id=PHOTO_CRUD_ID, group=group, album=album)
+
+        def assert_local_equal_to_remote(comment):
+            comment_remote = Comment.remote.fetch_photo(photo=comment.photo).get(remote_id=comment.remote_id)
+            self.assertEqual(comment_remote.remote_id, comment.remote_id)
+            self.assertEqual(comment_remote.text, comment.text)
+            self.assertEqual(comment_remote.author, comment.author)
+
+        Comment.remote.fetch_photo(photo=photo)
+        self.assertEqual(Comment.objects.count(), 0)
+
+        # create
+        comment = Comment(text='Test comment', photo=photo, author=group, date=datetime.now())
+        comment.save(commit_remote=True)
+        self.objects_to_delete += [comment]
+
+        self.assertEqual(Comment.objects.count(), 1)
+        self.assertEqual(comment.author, group)
+        self.assertNotEqual(len(comment.remote_id), 0)
+        assert_local_equal_to_remote(comment)
+
+        # create by manager
+        comment = Comment.objects.create(text='Test comment created by manager', photo=photo, author=group, date=datetime.now(), commit_remote=True)
+        self.objects_to_delete += [comment]
+        self.assertEqual(Comment.objects.count(), 2)
+
+        self.assertEqual(Comment.objects.count(), 2)
+        self.assertEqual(comment.author, group)
+        self.assertNotEqual(len(comment.remote_id), 0)
+        assert_local_equal_to_remote(comment)
+
+        # update
+        comment.text = 'Test comment updated'
+        comment.save(commit_remote=True)
+
+        self.assertEqual(Comment.objects.count(), 2)
+        assert_local_equal_to_remote(comment)
+
+        # delete
+        comment.delete(commit_remote=True)
+
+        self.assertEqual(Comment.objects.count(), 2)
+        self.assertTrue(comment.archived)
+        self.assertEqual(Comment.remote.fetch_photo(photo=comment.photo).filter(remote_id=comment.remote_id).count(), 0)
+
+        # restore
+        comment.restore(commit_remote=True)
+        self.assertFalse(comment.archived)
+
+        self.assertEqual(Comment.objects.count(), 2)
+        assert_local_equal_to_remote(comment)
