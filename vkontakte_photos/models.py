@@ -259,6 +259,7 @@ class Photo(PhotosAbstractModel):
 
     album = models.ForeignKey(Album, verbose_name=u'Альбом', related_name='photos')
 
+    # TODO: switch to ContentType, remove owner and group foreignkeys
     owner = models.ForeignKey(User, verbose_name=u'Владелец фотографии', null=True, related_name='photos')
     group = models.ForeignKey(Group, verbose_name=u'Группа фотографии', null=True, related_name='photos')
 
@@ -273,9 +274,9 @@ class Photo(PhotosAbstractModel):
     width = models.PositiveIntegerField(null=True)
     height = models.PositiveIntegerField(null=True)
 
-    likes_count = models.PositiveIntegerField(u'Лайков', default=0)
-    comments_count = models.PositiveIntegerField(u'Комментариев', default=0)
-    tags_count = models.PositiveIntegerField(u'Тегов', default=0)
+    likes = models.PositiveIntegerField(u'Лайков', default=0)
+    comments = models.PositiveIntegerField(u'Комментариев', default=0)
+    tags = models.PositiveIntegerField(u'Тегов', default=0)
 
     like_users = models.ManyToManyField(User, related_name='like_photos')
 
@@ -337,25 +338,24 @@ class Photo(PhotosAbstractModel):
             self.likes = int(values[0])
             self.save()
 
-    def update_and_get_likes(self, *args, **kwargs):
-        self.likes = self.like_users.count()
-        self.save()
-        return self.like_users.all()
-
     @transaction.commit_on_success
-    @fetch_all(return_all=update_and_get_likes, default_count=1000)
-    def fetch_likes(self, offset=0, *args, **kwargs):
+    def fetch_likes(self, *args, **kwargs):
 
+#        kwargs['offset'] = int(kwargs.pop('offset', 0))
         kwargs['likes_type'] = 'photo'
-        kwargs['offset'] = int(offset)
         kwargs['item_id'] = self.remote_id.split('_')[1]
         kwargs['owner_id'] = self.group.remote_id
         if isinstance(self.group, Group):
             kwargs['owner_id'] *= -1
 
-        log.debug('Fetching likes of %s "%s" of owner "%s", offset %d' % (self._meta.module_name, self.remote_id, self.group, offset))
+        log.debug('Fetching likes of %s %s of owner "%s"' % (self._meta.module_name, self.remote_id, self.group))
 
         users = User.remote.fetch_instance_likes(self, *args, **kwargs)
+
+        # update self.likes
+        self.likes = self.like_users.count()
+        self.save()
+
         return users
 
     @transaction.commit_on_success
@@ -374,7 +374,7 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
 
     remote_id = models.CharField(u'ID', max_length='20', help_text=u'Уникальный идентификатор', unique=True)
 
-    photo = models.ForeignKey(Photo, verbose_name=u'Фотография', related_name='comments')
+    photo = models.ForeignKey(Photo, verbose_name=u'Фотография', related_name='wall_comments')
 
     author_content_type = models.ForeignKey(ContentType, related_name='photo_comments')
     author_id = models.PositiveIntegerField(db_index=True)
