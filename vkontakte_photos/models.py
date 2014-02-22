@@ -23,8 +23,10 @@ ALBUM_PRIVACY_CHOCIES = (
 
 class AlbumRemoteManager(VkontakteTimelineManager):
 
-    timeline_cut_fieldname = 'updated'
     timeline_force_ordering = True
+
+    def get_timeline_date(self, instance):
+        return instance.updated or instance.created
 
     @transaction.commit_on_success
     def fetch(self, user=None, group=None, ids=None, need_covers=False, before=None, after=None, **kwargs):
