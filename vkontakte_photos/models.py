@@ -9,6 +9,7 @@ from vkontakte_api.decorators import fetch_all
 from vkontakte_users.models import User
 from vkontakte_groups.models import Group
 from parser import VkontaktePhotosParser
+from datetime import datetime
 import logging
 import re
 
@@ -26,7 +27,7 @@ class AlbumRemoteManager(VkontakteTimelineManager):
     timeline_force_ordering = True
 
     def get_timeline_date(self, instance):
-        return instance.updated or instance.created
+        return instance.updated or instance.created or datetime.now()
 
     @transaction.commit_on_success
     def fetch(self, user=None, group=None, ids=None, need_covers=False, before=None, after=None, **kwargs):
@@ -232,7 +233,7 @@ class Album(PhotosAbstractModel):
     title = models.CharField(max_length='200')
     description = models.TextField()
 
-    created = models.DateTimeField(db_index=True)
+    created = models.DateTimeField(null=True, db_index=True)
     updated = models.DateTimeField(null=True, db_index=True)
 
     size = models.PositiveIntegerField(u'Кол-во фотографий')
