@@ -22,6 +22,7 @@ ALBUM_PRIVACY_CHOCIES = (
     (3, u'Только я')
 )
 
+
 class AlbumRemoteManager(VkontakteTimelineManager):
 
     timeline_force_ordering = True
@@ -63,6 +64,7 @@ class AlbumRemoteManager(VkontakteTimelineManager):
         kwargs['before'] = before
 
         return super(AlbumRemoteManager, self).fetch(**kwargs)
+
 
 class PhotoRemoteManager(VkontakteTimelineManager):
 
@@ -111,6 +113,7 @@ class PhotoRemoteManager(VkontakteTimelineManager):
         #Тип новости получаемый в поле type метода newsfeed.get, для получения только загруженных пользователем фотографий, либо только фотографий, на которых он был отмечен. Может принимать значения photo, photo_tag.
 
         return super(PhotoRemoteManager, self).fetch(**kwargs)
+
 
 class CommentRemoteManager(VkontakteTimelineManager):
 
@@ -175,6 +178,7 @@ class CommentRemoteManager(VkontakteTimelineManager):
 #             else:
 #                 raise e
 
+
 class PhotosAbstractModel(VkontakteModel):
     class Meta:
         abstract = True
@@ -215,6 +219,7 @@ class PhotosAbstractModel(VkontakteModel):
 
         self.remote_id = self.get_remote_id(self.remote_id)
 
+
 class Album(PhotosAbstractModel):
     class Meta:
         verbose_name = u'Альбом фотографий Вконтакте'
@@ -252,6 +257,7 @@ class Album(PhotosAbstractModel):
     def fetch_photos(self, *args, **kwargs):
         return Photo.remote.fetch(album=self, *args, **kwargs)
 
+
 class Photo(PhotosAbstractModel):
     class Meta:
         verbose_name = u'Фотография Вконтакте'
@@ -277,9 +283,15 @@ class Photo(PhotosAbstractModel):
     width = models.PositiveIntegerField(null=True)
     height = models.PositiveIntegerField(null=True)
 
+    # TODO: delete after complete migration
     likes = models.PositiveIntegerField(u'Лайков', default=0)
     comments = models.PositiveIntegerField(u'Комментариев', default=0)
     tags = models.PositiveIntegerField(u'Тегов', default=0)
+
+    likes_count = models.PositiveIntegerField(u'Лайков', default=0)
+    comments_count = models.PositiveIntegerField(u'Комментариев', default=0)
+    actions_count = models.PositiveIntegerField(u'Комментариев', default=0)
+    tags_count = models.PositiveIntegerField(u'Тегов', default=0)
 
     like_users = models.ManyToManyField(User, related_name='like_photos')
 
@@ -295,9 +307,12 @@ class Photo(PhotosAbstractModel):
     def parse(self, response):
         super(Photo, self).parse(response)
 
+        # counters
         for field_name in ['likes','comments','tags']:
             if field_name in response and 'count' in response[field_name]:
-                setattr(self, field_name, response[field_name]['count'])
+                setattr(self, '%s_count' % field_name, response[field_name]['count'])
+
+        self.actions_count = self.likes_count + self.comments_count
 
         if 'user_id' in response:
             self.user = User.objects.get_or_create(remote_id=response['user_id'])[0]
@@ -320,7 +335,7 @@ class Photo(PhotosAbstractModel):
         }
         parser = VkontaktePhotosParser().request('/al_photos.php', data=post_data)
 
-        self.comments = len(parser.content_bs.findAll('div', {'class': 'clear_fix pv_comment '}))
+        self.comments_count = len(parser.content_bs.findAll('div', {'class': 'clear_fix pv_comment '}))
         self.save()
 
     def fetch_likes_parser(self):
@@ -338,7 +353,7 @@ class Photo(PhotosAbstractModel):
 
         values = re.findall(r'value="(\d+)"', parser.html)
         if len(values):
-            self.likes = int(values[0])
+            self.likes_count = int(values[0])
             self.save()
 
     @transaction.commit_on_success
@@ -356,7 +371,7 @@ class Photo(PhotosAbstractModel):
         users = User.remote.fetch_instance_likes(self, *args, **kwargs)
 
         # update self.likes
-        self.likes = self.like_users.count()
+        self.likes_count = self.like_users.count()
         self.save()
 
         return users
@@ -364,6 +379,7 @@ class Photo(PhotosAbstractModel):
     @transaction.commit_on_success
     def fetch_comments(self, *args, **kwargs):
         return Comment.remote.fetch_photo(photo=self, *args, **kwargs)
+
 
 class Comment(VkontakteModel, VkontakteCRUDModel):
     class Meta:
@@ -377,7 +393,7 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
 
     remote_id = models.CharField(u'ID', max_length='20', help_text=u'Уникальный идентификатор', unique=True)
 
-    photo = models.ForeignKey(Photo, verbose_name=u'Фотография', related_name='wall_comments')
+    photo = models.ForeignKey(Photo, verbose_name=u'Фотография', related_name='comments')
 
     author_content_type = models.ForeignKey(ContentType, related_name='photo_comments')
     author_id = models.PositiveIntegerField(db_index=True)

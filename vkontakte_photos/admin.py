@@ -12,7 +12,7 @@ class PhotoInline(admin.TabularInline):
     image.allow_tags = True
 
     model = Photo
-    fields = ('created','image','text','owner','group','user','likes','comments','tags')
+    fields = ('created','image','text','owner','group','user','likes_count','comments_count','tags_count')
     readonly_fields = fields
     extra = False
     can_delete = False
@@ -41,7 +41,7 @@ class PhotoAdmin(VkontakteModelAdmin):
     text_with_link.short_description = u'Текст'
     text_with_link.allow_tags = True
 
-    list_display = ('image_preview','text_with_link','vk_link','likes','comments','tags','created')
+    list_display = ('image_preview','text_with_link','vk_link','likes_count','comments_count','tags_count','created')
     list_filter = ('album',)
 
 admin.site.register(Album, AlbumAdmin)
