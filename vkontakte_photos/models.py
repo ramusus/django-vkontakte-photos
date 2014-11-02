@@ -283,11 +283,6 @@ class Photo(PhotosAbstractModel):
     width = models.PositiveIntegerField(null=True)
     height = models.PositiveIntegerField(null=True)
 
-    # TODO: delete after complete migration
-    likes = models.PositiveIntegerField(u'Лайков', default=0)
-    comments = models.PositiveIntegerField(u'Комментариев', default=0)
-    tags = models.PositiveIntegerField(u'Тегов', default=0)
-
     likes_count = models.PositiveIntegerField(u'Лайков', default=0)
     comments_count = models.PositiveIntegerField(u'Комментариев', default=0)
     actions_count = models.PositiveIntegerField(u'Комментариев', default=0)
