@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 from django.test import TestCase
-from models import Album, Photo, Comment
-from factories import AlbumFactory, PhotoFactory
-from vkontakte_users.factories import UserFactory, User
-from vkontakte_groups.factories import GroupFactory
-from datetime import datetime
-import simplejson as json
+from django.utils import timezone
 import mock
+import simplejson as json
+from vkontakte_groups.factories import GroupFactory
+from vkontakte_users.factories import UserFactory, User
+from vkontakte_users.tests import user_fetch_mock
+
+from .factories import AlbumFactory, PhotoFactory
+from .models import Album, Photo, Comment
 
 GROUP_ID = 16297716
 ALBUM_ID = '-16297716_154228728'
@@ -35,7 +37,7 @@ class VkontaktePhotosTest(TestCase):
 
         albums = group.fetch_albums()
 
-        self.assertTrue(len(albums) > 0)
+        self.assertGreater(len(albums), 0)
         self.assertEqual(Album.objects.count(), len(albums))
         self.assertEqual(albums[0].group, group)
 
@@ -43,24 +45,26 @@ class VkontaktePhotosTest(TestCase):
         self.assertListEqual(list(albums), list(Album.objects.order_by('-updated')))
 
         # testing `after` parameter
-        after = Album.objects.order_by('-updated')[10].updated.replace(tzinfo=None)
+        after = Album.objects.order_by('-updated')[10].updated
 
+        albums_count = Album.objects.count()
         Album.objects.all().delete()
         self.assertEqual(Album.objects.count(), 0)
 
         albums = group.fetch_albums(after=after)
-        self.assertEqual(len(albums), Album.objects.count())
-        self.assertEqual(len(albums), 11)
+        self.assertEqual(albums.count(), Album.objects.count())
+        self.assertLess(albums.count(), albums_count)
 
         # testing `before` parameter
-        before = Album.objects.order_by('-updated')[5].updated.replace(tzinfo=None)
+        before = Album.objects.order_by('-updated')[5].updated
 
+        albums_count = Album.objects.count()
         Album.objects.all().delete()
         self.assertEqual(Album.objects.count(), 0)
 
         albums = group.fetch_albums(before=before, after=after)
-        self.assertEqual(len(albums), Album.objects.count())
-        self.assertEqual(len(albums), 5)
+        self.assertEqual(albums.count(), Album.objects.count())
+        self.assertLess(albums.count(), albums_count)
 
     def test_fetch_group_photos(self):
 
@@ -71,34 +75,36 @@ class VkontaktePhotosTest(TestCase):
 
         photos = album.fetch_photos(extended=True)
 
-        self.assertTrue(len(photos) > 0)
+        self.assertGreater(len(photos), 0)
         self.assertEqual(Photo.objects.count(), len(photos))
         self.assertEqual(photos[0].group, group)
         self.assertEqual(photos[0].album, album)
-        self.assertTrue(photos[0].likes_count > 0)
-        self.assertTrue(photos[0].comments_count > 0)
+        self.assertGreater(photos[0].likes_count, 0)
+        self.assertGreater(photos[0].comments_count, 0)
 
         # testing `after` parameter
-        after = Photo.objects.order_by('-created')[4].created.replace(tzinfo=None)
+        after = Photo.objects.order_by('-created')[4].created
 
+        photos_count = Photo.objects.count()
         Photo.objects.all().delete()
         self.assertEqual(Photo.objects.count(), 0)
 
         photos = album.fetch_photos(after=after)
-        self.assertEqual(len(photos), Photo.objects.count())
-        self.assertEqual(len(photos), 5)
+        self.assertEqual(photos.count(), Photo.objects.count())
+        self.assertLess(photos.count(), photos_count)
 
         # testing `before` parameter
-        before = Photo.objects.order_by('-created')[2].created.replace(tzinfo=None)
+        before = Photo.objects.order_by('-created')[2].created
 
+        photos_count = Photo.objects.count()
         Photo.objects.all().delete()
         self.assertEqual(Photo.objects.count(), 0)
 
         photos = album.fetch_photos(before=before, after=after)
-        self.assertEqual(len(photos), Photo.objects.count())
-        self.assertEqual(len(photos), 1)
+        self.assertEqual(photos.count(), Photo.objects.count())
+        self.assertLess(photos.count(), photos_count)
 
-    @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=lambda ids, **kw: User.objects.filter(id__in=[user.id for user in [UserFactory.create(remote_id=i) for i in ids]]))
+    @mock.patch('vkontakte_users.models.User.remote._fetch', side_effect=user_fetch_mock)
     def test_fetch_photo_comments(self, *kwargs):
 
         group = GroupFactory(remote_id=GROUP_ID)
@@ -106,30 +112,31 @@ class VkontaktePhotosTest(TestCase):
         photo = PhotoFactory(remote_id=PHOTO_ID, album=album, group=group)
 
         comments = photo.fetch_comments(count=20, sort='desc')
-        self.assertEqual(len(comments), photo.comments.count())
-        self.assertEqual(len(comments), 20)
+        self.assertEqual(comments.count(), photo.comments.count())
+        self.assertEqual(comments.count(), 20)
 
         # testing `after` parameter
-        after = Comment.objects.order_by('date')[0].date.replace(tzinfo=None)
+        after = Comment.objects.order_by('date')[0].date
 
+        comments_count = Comment.objects.count()
         Comment.objects.all().delete()
         self.assertEqual(Comment.objects.count(), 0)
 
         comments = photo.fetch_comments(after=after, sort='desc')
-        self.assertEqual(len(comments), Comment.objects.count())
-        self.assertEqual(len(comments), photo.comments.count())
-        self.assertEqual(len(comments), 21)
+        self.assertEqual(comments.count(), Comment.objects.count())
+        self.assertEqual(comments.count(), photo.comments.count())
+        self.assertEqual(comments.count(), comments_count)
 
         # testing `all` parameter
         Comment.objects.all().delete()
         self.assertEqual(Comment.objects.count(), 0)
 
         comments = photo.fetch_comments(all=True)
-        self.assertEqual(len(comments), Comment.objects.count())
-        self.assertEqual(len(comments), photo.comments.count())
-        self.assertTrue(photo.comments.count() > 20)
+        self.assertEqual(comments.count(), Comment.objects.count())
+        self.assertEqual(comments.count(), photo.comments.count())
+        self.assertGreater(photo.comments.count(), comments_count)
 
-    @mock.patch('vkontakte_users.models.User.remote.fetch', side_effect=lambda ids, **kw: User.objects.filter(id__in=[user.id for user in [UserFactory.create(remote_id=i) for i in ids]]))
+    @mock.patch('vkontakte_users.models.User.remote._fetch', side_effect=user_fetch_mock)
     def test_fetch_photo_likes(self, *kwargs):
 
         group = GroupFactory(remote_id=GROUP_ID)
@@ -141,7 +148,7 @@ class VkontaktePhotosTest(TestCase):
 
         users = photo.fetch_likes(all=True)
 
-        self.assertTrue(photo.likes_count > 0)
+        self.assertGreater(photo.likes_count, 0)
         self.assertEqual(photo.likes_count, len(users))
         self.assertEqual(photo.likes_count, User.objects.count() - users_initial)
         self.assertEqual(photo.likes_count, photo.like_users.count())
@@ -154,7 +161,7 @@ class VkontaktePhotosTest(TestCase):
 
         self.assertEqual(photo.likes_count, 0)
         photo.fetch_likes_parser()
-        self.assertTrue(photo.likes_count > 0)
+        self.assertGreater(photo.likes_count, 0)
 
     def test_fetch_photo_comments_parser(self):
 
@@ -164,7 +171,7 @@ class VkontaktePhotosTest(TestCase):
 
         self.assertEqual(photo.comments_count, 0)
         photo.fetch_comments_parser()
-        self.assertTrue(photo.comments_count > 0)
+        self.assertGreater(photo.comments_count, 0)
 
     def test_parse_album(self):
 
@@ -256,7 +263,7 @@ class VkontaktePhotosTest(TestCase):
         self.assertEqual(instance.remote_id, '-%s_91121' % GROUP_ID)
         self.assertEqual(instance.photo, photo)
         self.assertEqual(instance.author.remote_id, 232760293)
-        self.assertTrue(len(instance.text) > 10)
+        self.assertGreater(len(instance.text), 10)
         self.assertIsNotNone(instance.date)
 
     def test_comment_crud_methods(self):
@@ -274,7 +281,7 @@ class VkontaktePhotosTest(TestCase):
         self.assertEqual(Comment.objects.count(), 0)
 
         # create
-        comment = Comment(text='Test comment', photo=photo, author=group, date=datetime.now())
+        comment = Comment(text='Test comment', photo=photo, author=group, date=timezone.now())
         comment.save(commit_remote=True)
         self.objects_to_delete += [comment]
 
@@ -284,7 +291,8 @@ class VkontaktePhotosTest(TestCase):
         assert_local_equal_to_remote(comment)
 
         # create by manager
-        comment = Comment.objects.create(text='Test comment created by manager', photo=photo, author=group, date=datetime.now(), commit_remote=True)
+        comment = Comment.objects.create(
+            text='Test comment created by manager', photo=photo, author=group, date=timezone.now(), commit_remote=True)
         self.objects_to_delete += [comment]
         self.assertEqual(Comment.objects.count(), 2)
 
@@ -305,7 +313,8 @@ class VkontaktePhotosTest(TestCase):
 
         self.assertEqual(Comment.objects.count(), 2)
         self.assertTrue(comment.archived)
-        self.assertEqual(Comment.remote.fetch_photo(photo=comment.photo).filter(remote_id=comment.remote_id).count(), 0)
+        self.assertEqual(Comment.remote.fetch_photo(
+            photo=comment.photo).filter(remote_id=comment.remote_id).count(), 0)
 
         # restore
         comment.restore(commit_remote=True)

@@ -3,6 +3,7 @@ from django.db import models, transaction
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
 from django.utils import timezone
+from django.utils.encoding import python_2_unicode_compatible
 from vkontakte_api.utils import api_call
 from vkontakte_api import fields
 from vkontakte_api.models import VkontakteTimelineManager, VkontakteModel, VkontakteCRUDModel
@@ -180,12 +181,13 @@ class CommentRemoteManager(VkontakteTimelineManager):
 
 
 class PhotosAbstractModel(VkontakteModel):
-    class Meta:
-        abstract = True
 
     methods_namespace = 'photos'
 
     remote_id = models.CharField(u'ID', max_length='20', help_text=u'Уникальный идентификатор', unique=True)
+
+    class Meta:
+        abstract = True
 
     @property
     def remote_id_short(self):
@@ -220,10 +222,8 @@ class PhotosAbstractModel(VkontakteModel):
         self.remote_id = self.get_remote_id(self.remote_id)
 
 
+@python_2_unicode_compatible
 class Album(PhotosAbstractModel):
-    class Meta:
-        verbose_name = u'Альбом фотографий Вконтакте'
-        verbose_name_plural = u'Альбомы фотографий Вконтакте'
 
     remote_pk_field = 'aid'
     slug_prefix = 'album'
@@ -250,7 +250,11 @@ class Album(PhotosAbstractModel):
 #        'edit': 'editAlbum',
     })
 
-    def __unicode__(self):
+    class Meta:
+        verbose_name = u'Альбом фотографий Вконтакте'
+        verbose_name_plural = u'Альбомы фотографий Вконтакте'
+
+    def __str__(self):
         return self.title
 
     @transaction.commit_on_success
@@ -259,9 +263,6 @@ class Album(PhotosAbstractModel):
 
 
 class Photo(PhotosAbstractModel):
-    class Meta:
-        verbose_name = u'Фотография Вконтакте'
-        verbose_name_plural = u'Фотографии Вконтакте'
 
     remote_pk_field = 'pid'
     slug_prefix = 'photo'
@@ -298,6 +299,10 @@ class Photo(PhotosAbstractModel):
     remote = PhotoRemoteManager(remote_pk=('remote_id',), methods={
         'get': 'get',
     })
+
+    class Meta:
+        verbose_name = u'Фотография Вконтакте'
+        verbose_name_plural = u'Фотографии Вконтакте'
 
     def parse(self, response):
         super(Photo, self).parse(response)
@@ -377,9 +382,6 @@ class Photo(PhotosAbstractModel):
 
 
 class Comment(VkontakteModel, VkontakteCRUDModel):
-    class Meta:
-        verbose_name = u'Коммментарий фотографии Вконтакте'
-        verbose_name_plural = u'Коммментарии фотографий Вконтакте'
 
     methods_namespace = 'photos'
     remote_pk_field = 'cid'
@@ -409,6 +411,10 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
         'delete': 'deleteComment',
         'restore': 'restoreComment',
     })
+
+    class Meta:
+        verbose_name = u'Коммментарий фотографии Вконтакте'
+        verbose_name_plural = u'Коммментарии фотографий Вконтакте'
 
     @property
     def remote_owner_id(self):
