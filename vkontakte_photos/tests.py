@@ -42,7 +42,7 @@ class VkontaktePhotosTest(TestCase):
         self.assertEqual(albums[0].group, group)
 
         # check force ordering
-        self.assertListEqual(list(albums), list(Album.objects.order_by('-updated')))
+        self.assertItemsEqual(albums, Album.objects.order_by('-updated'))
 
         # testing `after` parameter
         after = Album.objects.order_by('-updated')[10].updated
@@ -277,8 +277,13 @@ class VkontaktePhotosTest(TestCase):
             self.assertEqual(comment_remote.text, comment.text)
             self.assertEqual(comment_remote.author, comment.author)
 
-        Comment.remote.fetch_photo(photo=photo)
-        self.assertEqual(Comment.objects.count(), 0)
+        # try to delete comments from prev tests
+        for comment in Comment.remote.fetch_photo(photo=photo):
+            comment.delete(commit_remote=True)
+        # checks there is no remote and local comments
+        comments = Comment.remote.fetch_photo(photo=photo)
+        self.assertEqual(Comment.objects.count(), 0, 'Error: There are %s comments from previous test. Delete them manually here %s' % (
+            comments.count(), photo.get_url()))
 
         # create
         comment = Comment(text='Test comment', photo=photo, author=group, date=timezone.now())
