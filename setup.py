@@ -12,9 +12,9 @@ setup(
     license='BSD',
     packages=find_packages(),
     include_package_data=True,
-    zip_safe=False, # because we're including media that Django needs
+    zip_safe=False,  # because we're including media that Django needs
     install_requires=[
-        'django-vkontakte-api>=0.5.9',
+        'django-vkontakte-api>=0.7.0',
         'django-vkontakte-users>=0.5.5',
         'django-vkontakte-groups>=0.3.8',
     ],
