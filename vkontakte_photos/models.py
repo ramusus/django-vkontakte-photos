@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
-from django.db import models, transaction
-from django.contrib.contenttypes.models import ContentType
-from django.contrib.contenttypes import generic
-from django.utils import timezone
-from vkontakte_api.utils import api_call
-from vkontakte_api import fields
-from vkontakte_api.models import VkontakteTimelineManager, VkontakteModel, VkontakteCRUDModel
-from vkontakte_api.decorators import fetch_all
-from vkontakte_users.models import User
-from vkontakte_groups.models import Group
-from parser import VkontaktePhotosParser
 import logging
+from parser import VkontaktePhotosParser
 import re
+
+from django.contrib.contenttypes import generic
+from django.contrib.contenttypes.models import ContentType
+from django.db import models, transaction
+from django.utils import timezone
+from django.utils.encoding import python_2_unicode_compatible
+from vkontakte_api.decorators import fetch_all
+from vkontakte_api.models import VkontakteTimelineManager, VkontakteModel, VkontakteCRUDModel
+from vkontakte_groups.models import Group
+from vkontakte_users.models import User
 
 log = logging.getLogger('vkontakte_photos')
 
@@ -42,20 +42,20 @@ class AlbumRemoteManager(VkontakteTimelineManager):
             raise ValueError("Attribute `before` should be later, than attribute `after`")
 
         kwargs = {
-            #need_covers
-            #1 - будет возвращено дополнительное поле thumb_src. По умолчанию поле thumb_src не возвращается.
+            # need_covers
+            # 1 - будет возвращено дополнительное поле thumb_src. По умолчанию поле thumb_src не возвращается.
             'need_covers': int(need_covers)
         }
-        #uid
-        #ID пользователя, которому принадлежат альбомы. По умолчанию – ID текущего пользователя.
+        # uid
+        # ID пользователя, которому принадлежат альбомы. По умолчанию – ID текущего пользователя.
         if user:
             kwargs.update({'uid': user.remote_id})
-        #gid
-        #ID группы, которой принадлежат альбомы.
+        # gid
+        # ID группы, которой принадлежат альбомы.
         if group:
             kwargs.update({'gid': group.remote_id})
-        #aids
-        #перечисленные через запятую ID альбомов.
+        # aids
+        # перечисленные через запятую ID альбомов.
         if ids:
             kwargs.update({'aids': ','.join(map(str, ids))})
 
@@ -87,8 +87,8 @@ class PhotoRemoteManager(VkontakteTimelineManager):
             'album_id': album.remote_id.split('_')[1],
             'extended': int(extended),
             'offset': int(offset),
-            #photo_sizes
-            #1 - позволяет получать все размеры фотографий.
+            # photo_sizes
+            # 1 - позволяет получать все размеры фотографий.
             'photo_sizes': int(photo_sizes),
         }
         if album.owner:
@@ -107,10 +107,10 @@ class PhotoRemoteManager(VkontakteTimelineManager):
         kwargs['before'] = before
 
         # TODO: добавить поля
-        #feed
-        #Unixtime, который может быть получен методом newsfeed.get в поле date, для получения всех фотографий загруженных пользователем в определённый день либо на которых пользователь был отмечен. Также нужно указать параметр uid пользователя, с которым произошло событие.
-        #feed_type
-        #Тип новости получаемый в поле type метода newsfeed.get, для получения только загруженных пользователем фотографий, либо только фотографий, на которых он был отмечен. Может принимать значения photo, photo_tag.
+        # feed
+        # Unixtime, который может быть получен методом newsfeed.get в поле date, для получения всех фотографий загруженных пользователем в определённый день либо на которых пользователь был отмечен. Также нужно указать параметр uid пользователя, с которым произошло событие.
+        # feed_type
+        # Тип новости получаемый в поле type метода newsfeed.get, для получения только загруженных пользователем фотографий, либо только фотографий, на которых он был отмечен. Может принимать значения photo, photo_tag.
 
         return super(PhotoRemoteManager, self).fetch(**kwargs)
 
@@ -127,7 +127,7 @@ class CommentRemoteManager(VkontakteTimelineManager):
     def fetch_photo(self, photo, offset=0, count=100, sort='asc', need_likes=True, before=None, after=None, **kwargs):
         if count > 100:
             raise ValueError("Attribute 'count' can not be more than 100")
-        if sort not in ['asc','desc']:
+        if sort not in ['asc', 'desc']:
             raise ValueError("Attribute 'sort' should be equal to 'asc' or 'desc'")
         if sort == 'asc' and after:
             raise ValueError("Attribute `sort` should be equal to 'desc' with defined `after` attribute")
@@ -180,12 +180,13 @@ class CommentRemoteManager(VkontakteTimelineManager):
 
 
 class PhotosAbstractModel(VkontakteModel):
-    class Meta:
-        abstract = True
 
     methods_namespace = 'photos'
 
     remote_id = models.CharField(u'ID', max_length='20', help_text=u'Уникальный идентификатор', unique=True)
+
+    class Meta:
+        abstract = True
 
     @property
     def remote_id_short(self):
@@ -220,10 +221,8 @@ class PhotosAbstractModel(VkontakteModel):
         self.remote_id = self.get_remote_id(self.remote_id)
 
 
+@python_2_unicode_compatible
 class Album(PhotosAbstractModel):
-    class Meta:
-        verbose_name = u'Альбом фотографий Вконтакте'
-        verbose_name_plural = u'Альбомы фотографий Вконтакте'
 
     remote_pk_field = 'aid'
     slug_prefix = 'album'
@@ -250,7 +249,11 @@ class Album(PhotosAbstractModel):
 #        'edit': 'editAlbum',
     })
 
-    def __unicode__(self):
+    class Meta:
+        verbose_name = u'Альбом фотографий Вконтакте'
+        verbose_name_plural = u'Альбомы фотографий Вконтакте'
+
+    def __str__(self):
         return self.title
 
     @transaction.commit_on_success
@@ -259,9 +262,6 @@ class Album(PhotosAbstractModel):
 
 
 class Photo(PhotosAbstractModel):
-    class Meta:
-        verbose_name = u'Фотография Вконтакте'
-        verbose_name_plural = u'Фотографии Вконтакте'
 
     remote_pk_field = 'pid'
     slug_prefix = 'photo'
@@ -299,11 +299,15 @@ class Photo(PhotosAbstractModel):
         'get': 'get',
     })
 
+    class Meta:
+        verbose_name = u'Фотография Вконтакте'
+        verbose_name_plural = u'Фотографии Вконтакте'
+
     def parse(self, response):
         super(Photo, self).parse(response)
 
         # counters
-        for field_name in ['likes','comments','tags']:
+        for field_name in ['likes', 'comments', 'tags']:
             if field_name in response and 'count' in response[field_name]:
                 setattr(self, '%s_count' % field_name, response[field_name]['count'])
 
@@ -323,7 +327,7 @@ class Photo(PhotosAbstractModel):
         TODO: implement fetching comments
         '''
         post_data = {
-            'act':'photo_comments',
+            'act': 'photo_comments',
             'al': 1,
             'offset': 0,
             'photo': self.remote_id,
@@ -339,7 +343,7 @@ class Photo(PhotosAbstractModel):
         TODO: implement fetching users who likes
         '''
         post_data = {
-            'act':'a_get_stats',
+            'act': 'a_get_stats',
             'al': 1,
             'list': 'album%s' % self.album.remote_id,
             'object': 'photo%s' % self.remote_id,
@@ -377,9 +381,6 @@ class Photo(PhotosAbstractModel):
 
 
 class Comment(VkontakteModel, VkontakteCRUDModel):
-    class Meta:
-        verbose_name = u'Коммментарий фотографии Вконтакте'
-        verbose_name_plural = u'Коммментарии фотографий Вконтакте'
 
     methods_namespace = 'photos'
     remote_pk_field = 'cid'
@@ -396,7 +397,9 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
 
     date = models.DateTimeField(help_text=u'Дата создания', db_index=True)
     text = models.TextField(u'Текст сообщения')
-    #attachments - присутствует только если у сообщения есть прикрепления, содержит массив объектов (фотографии, ссылки и т.п.). Более подробная информация представлена на странице Описание поля attachments
+    # attachments - присутствует только если у сообщения есть прикрепления,
+    # содержит массив объектов (фотографии, ссылки и т.п.). Более подробная
+    # информация представлена на странице Описание поля attachments
 
     # TODO: implement with tests
 #    likes = models.PositiveIntegerField(u'Кол-во лайков', default=0)
@@ -409,6 +412,10 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
         'delete': 'deleteComment',
         'restore': 'restoreComment',
     })
+
+    class Meta:
+        verbose_name = u'Коммментарий фотографии Вконтакте'
+        verbose_name_plural = u'Коммментарии фотографий Вконтакте'
 
     @property
     def remote_owner_id(self):
@@ -481,5 +488,3 @@ class Comment(VkontakteModel, VkontakteCRUDModel):
 
         if '_' not in str(self.remote_id):
             self.remote_id = '%s_%s' % (self.remote_owner_id, self.remote_id)
-
-import signals
