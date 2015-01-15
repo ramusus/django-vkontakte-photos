@@ -1,30 +1,39 @@
-from vkontakte_users.factories import UserFactory
-from vkontakte_groups.factories import GroupFactory
-from models import Album, Photo
 from datetime import datetime
-import factory
 import random
 
+import factory
+from vkontakte_groups.factories import GroupFactory
+from vkontakte_users.factories import UserFactory
+
+from . import models
+
+
 class AlbumFactory(factory.DjangoModelFactory):
-    FACTORY_FOR = Album
 
     remote_id = factory.LazyAttributeSequence(lambda o, n: '-%s_%s' % (o.group.remote_id, n))
     thumb_id = factory.Sequence(lambda n: n)
 
     group = factory.SubFactory(GroupFactory)
 
-    created = datetime.now()
-    updated = datetime.now()
+    created = factory.LazyAttribute(lambda o: datetime.now())
+    updated = factory.LazyAttribute(lambda o: datetime.now())
     size = 1
 
+    class Meta:
+        model = models.Album
+
+
 class PhotoFactory(factory.DjangoModelFactory):
-    FACTORY_FOR = Photo
 
     remote_id = factory.LazyAttributeSequence(lambda o, n: '%s_%s' % (o.group.remote_id, n))
     user = factory.SubFactory(UserFactory)
     album = factory.SubFactory(AlbumFactory)
     group = factory.SubFactory(GroupFactory)
 
-    created = datetime.now()
+    created = factory.LazyAttribute(lambda o: datetime.now())
+    actions_count = factory.LazyAttribute(lambda o: random.randrange(100))
     width = 10
     height = 10
+
+    class Meta:
+        model = models.Photo
