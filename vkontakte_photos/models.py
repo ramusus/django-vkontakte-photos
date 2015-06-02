@@ -5,10 +5,10 @@ import re
 
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
-from django.db import models, transaction
+from django.db import models
 from django.utils import timezone
 from django.utils.encoding import python_2_unicode_compatible
-from vkontakte_api.decorators import fetch_all
+from vkontakte_api.decorators import fetch_all, atomic
 from vkontakte_api.models import VkontakteTimelineManager, VkontakteModel, VkontakteCRUDModel
 from vkontakte_groups.models import Group
 from vkontakte_users.models import User
@@ -30,7 +30,7 @@ class AlbumRemoteManager(VkontakteTimelineManager):
     def get_timeline_date(self, instance):
         return instance.updated or instance.created or timezone.now()
 
-    @transaction.commit_on_success
+    @atomic
     def fetch(self, user=None, group=None, ids=None, need_covers=False, before=None, after=None, **kwargs):
         if not user and not group:
             raise ValueError("You must specify user of group, which albums you want to fetch")
@@ -71,7 +71,7 @@ class PhotoRemoteManager(VkontakteTimelineManager):
     timeline_cut_fieldname = 'created'
     timeline_force_ordering = True
 
-    @transaction.commit_on_success
+    @atomic
     def fetch(self, album, ids=None, limit=None, extended=False, offset=0, photo_sizes=False, before=None, rev=0, after=None, **kwargs):
         if ids and not isinstance(ids, (tuple, list)):
             raise ValueError("Attribute 'ids' should be tuple or list")
@@ -117,12 +117,12 @@ class PhotoRemoteManager(VkontakteTimelineManager):
 
 class CommentRemoteManager(VkontakteTimelineManager):
 
-    @transaction.commit_on_success
+    @atomic
     @fetch_all(default_count=100)
     def fetch_album(self, album, offset=0, count=100, sort='asc', need_likes=True, before=None, after=None, **kwargs):
         raise NotImplementedError
 
-    @transaction.commit_on_success
+    @atomic
     @fetch_all(default_count=100)
     def fetch_photo(self, photo, offset=0, count=100, sort='asc', need_likes=True, before=None, after=None, **kwargs):
         if count > 100:
@@ -256,7 +256,7 @@ class Album(PhotosAbstractModel):
     def __str__(self):
         return self.title
 
-    @transaction.commit_on_success
+    @atomic
     def fetch_photos(self, *args, **kwargs):
         return Photo.remote.fetch(album=self, *args, **kwargs)
 
@@ -355,7 +355,7 @@ class Photo(PhotosAbstractModel):
             self.likes_count = int(values[0])
             self.save()
 
-    @transaction.commit_on_success
+    @atomic
     def fetch_likes(self, *args, **kwargs):
 
 #        kwargs['offset'] = int(kwargs.pop('offset', 0))
@@ -375,7 +375,7 @@ class Photo(PhotosAbstractModel):
 
         return users
 
-    @transaction.commit_on_success
+    @atomic
     def fetch_comments(self, *args, **kwargs):
         return Comment.remote.fetch_photo(photo=self, *args, **kwargs)
 
