@@ -73,7 +73,7 @@ Django Vkontakte Photos
 
 Фотоальбомы группы доступны через менеджер
 
-    >>> group.photo_albums.count()
+    >>> group.photoalbums.count()
     47
 
 Фотографии всех альбомов группы доступны через менеджер

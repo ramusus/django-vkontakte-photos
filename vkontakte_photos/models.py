@@ -228,8 +228,8 @@ class Album(PhotosAbstractModel):
     slug_prefix = 'album'
 
     # TODO: migrate to ContentType framework, remove vkontakte_users and vkontakte_groups dependencies
-    owner = models.ForeignKey(User, verbose_name=u'Владелец альбома', null=True, related_name='photo_albums')
-    group = models.ForeignKey(Group, verbose_name=u'Группа альбома', null=True, related_name='photo_albums')
+    owner = models.ForeignKey(User, verbose_name=u'Владелец альбома', null=True, related_name='photoalbums')
+    group = models.ForeignKey(Group, verbose_name=u'Группа альбома', null=True, related_name='photoalbums')
 
     thumb_id = models.PositiveIntegerField()
     thumb_src = models.CharField(u'Обложка альбома', max_length='200')
@@ -285,7 +285,7 @@ class Photo(PhotosAbstractModel):
 
     likes_count = models.PositiveIntegerField(u'Лайков', default=0)
     comments_count = models.PositiveIntegerField(u'Комментариев', default=0)
-    actions_count = models.PositiveIntegerField(u'Комментариев', default=0)
+    actions_count = models.PositiveIntegerField(u'Действий', default=0)
     tags_count = models.PositiveIntegerField(u'Тегов', default=0)
 
     like_users = models.ManyToManyField(User, related_name='like_photos')
